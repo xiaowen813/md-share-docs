@@ -41,11 +41,16 @@ for (const [name, lang] of [
 }
 
 // ---------- 代码块高亮 ----------
-// 给高亮后的每一行前面插入行号标记（编辑预览/阅读/打印都会显示）
+// 给高亮后的每一行加上行号：行号绝对定位在左，内容区左缩进，
+// 这样打印时长行折行的续行都在内容区内换行，不会和行号重叠
 function addLineNumbers(highlightedHtml) {
-  return highlightedHtml
-    .split('\n')
-    .map((line, i) => `<span class="code-ln">${i + 1}</span>${line}`)
+  const lines = highlightedHtml.split('\n')
+  if (lines.length && lines[lines.length - 1] === '') lines.pop() // 去掉末尾空行
+  return lines
+    .map(
+      (line, i) =>
+        `<span class="code-line"><span class="code-ln">${i + 1}</span><span class="code-content">${line}</span></span>`
+    )
     .join('\n')
 }
 
