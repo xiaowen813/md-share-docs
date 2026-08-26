@@ -1,5 +1,11 @@
 <script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { isSupabaseConfigured } from './lib/supabase'
+
+const route = useRoute()
+// 编辑页需要更宽的工作区，容器铺满浏览器宽度
+const isEditor = computed(() => route.name === 'edit')
 </script>
 
 <template>
@@ -24,7 +30,7 @@ import { isSupabaseConfigured } from './lib/supabase'
       <code>VITE_SUPABASE_URL</code> 和 <code>VITE_SUPABASE_ANON_KEY</code> 后重启 <code>npm run dev</code>。
     </div>
 
-    <main class="container">
+    <main class="container" :class="{ 'container-wide': isEditor }">
       <router-view />
     </main>
 

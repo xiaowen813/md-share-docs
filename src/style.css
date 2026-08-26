@@ -50,6 +50,7 @@ body {
 }
 
 .container { flex: 1; width: 100%; max-width: 1080px; margin: 0 auto; padding: 28px 24px 48px; }
+.container-wide { max-width: none; padding: 20px 24px 40px; }
 .footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px; }
 
 /* ---------- 按钮 ---------- */
@@ -297,7 +298,7 @@ body {
 .edit-page { color: var(--text); }
 .edit-page .editor-split { background: var(--surface); }
 .edit-page .markdown-body { font-size: 16px; line-height: 1.8; color: var(--text); }
-.edit-page .pane .preview { background: var(--surface); }
+.edit-page .pane .preview { background: var(--surface); max-width: none; margin: 0; }
 .edit-page .markdown-body pre { font-size: 14px; }
 .edit-page .markdown-body code { font-size: .92em; }
 .edit-page .pane textarea { color: #d4d4d4; caret-color: var(--primary); }
