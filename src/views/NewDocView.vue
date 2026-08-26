@@ -1,10 +1,13 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { rememberPassword } from '../lib/editorSession'
 
 const router = useRouter()
+const route = useRoute()
+const folderId = route.query.folder || null
+const folderName = route.query.name ? decodeURIComponent(route.query.name) : ''
 
 const title = ref('')
 const slug = ref('')
@@ -46,6 +49,7 @@ async function submit() {
     p_title: title.value.trim(),
     p_password: password.value,
     p_content_md: content.value,
+    p_folder_id: folderId,
   })
   submitting.value = false
   if (err) {
@@ -64,6 +68,7 @@ async function submit() {
 <template>
   <section>
     <h1>新建文档</h1>
+    <p v-if="folderName" class="muted" style="margin:0 0 14px">📁 将创建在文件夹「{{ folderName }}」中</p>
     <div class="form-card">
       <div class="field">
         <label for="title">标题</label>

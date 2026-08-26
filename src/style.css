@@ -341,9 +341,35 @@ body {
 .edit-page-light .btn:hover { background: #f3f5f7; }
 .edit-page-light .splitter:hover, .edit-page-light .splitter:active { background: rgba(13, 148, 136, .25); }
 
+/* ---------- 文件夹 ---------- */
+.head-actions { display: flex; gap: 10px; }
+.section-title { font-size: 16px; margin: 28px 0 12px; }
+.section-gap { margin-top: 12px; }
+.folder-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px;
+}
+.folder-card {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px 18px; text-decoration: none; color: var(--text);
+  box-shadow: var(--shadow-sm);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.folder-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: #b8e6df; }
+.folder-icon { font-size: 30px; }
+.folder-info h3 { margin: 0 0 2px; font-size: 15px; }
+.folder-info p { margin: 0; font-size: 12px; }
+
+/* ---------- 打印容器（文件夹全部 PDF） ---------- */
+.print-only { display: none; }
+.print-doc { page-break-after: always; break-after: page; }
+.print-doc:last-child { page-break-after: auto; break-after: auto; }
+.print-doc-title { font-size: 26px; margin: 0 0 14px; }
+
 @media print {
   .no-print { display: none !important; }
   body { background: #fff; }
   .container { max-width: 100%; padding: 0; }
   .markdown-body { border: none; padding: 0; max-width: 100%; box-shadow: none; }
+  .print-only { display: block !important; }
 }

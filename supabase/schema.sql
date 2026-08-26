@@ -16,7 +16,22 @@
 create extension if not exists pgcrypto;
 
 -- ------------------------------------------------------------
--- 文档表
+-- 文件夹表（公开可读，创建走 RPC）
+-- ------------------------------------------------------------
+create table if not exists public.folders (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.folders enable row level security;
+
+drop policy if exists "folders_public_read" on public.folders;
+create policy "folders_public_read" on public.folders
+  for select using (true);
+
+-- ------------------------------------------------------------
+-- 文档表（folder_id 为空 = 根目录）
 -- ------------------------------------------------------------
 create table if not exists public.documents (
   id            uuid primary key default gen_random_uuid(),
@@ -24,14 +39,17 @@ create table if not exists public.documents (
   title         text not null,
   content_md    text not null default '',
   password_hash text not null,
+  folder_id     uuid references public.folders(id) on delete set null,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
 
--- 行级安全：默认拒绝所有直接访问，只开放只读
+-- 老表升级时补充 folder_id 列（幂等）
+alter table public.documents add column if not exists folder_id uuid references public.folders(id) on delete set null;
+create index if not exists documents_folder_idx on public.documents (folder_id);
+
 alter table public.documents enable row level security;
 
--- 任何人可以读（阅读模式公开共享）
 drop policy if exists "documents_public_read" on public.documents;
 create policy "documents_public_read" on public.documents
   for select using (true);
@@ -61,13 +79,39 @@ create policy "document_versions_public_read" on public.document_versions
   for select using (true);
 
 -- ------------------------------------------------------------
--- 1) 创建文档（设置编辑密码）
+-- 0) 创建文件夹
 -- ------------------------------------------------------------
+create or replace function public.create_folder(p_name text)
+returns public.folders
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_folder public.folders;
+begin
+  if p_name is null or btrim(p_name) = '' then
+    raise exception '文件夹名称不能为空';
+  end if;
+  insert into public.folders (name)
+  values (btrim(p_name))
+  returning * into v_folder;
+  return v_folder;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 1) 创建文档（设置编辑密码，可选放进文件夹）
+-- ------------------------------------------------------------
+-- 清理旧的 4 参数版本，避免函数重载混淆
+drop function if exists public.create_document(text, text, text, text);
+
 create or replace function public.create_document(
   p_slug text,
   p_title text,
   p_password text,
-  p_content_md text default ''
+  p_content_md text default '',
+  p_folder_id uuid default null
 )
 returns public.documents
 language plpgsql
@@ -86,13 +130,17 @@ begin
   if p_password is null or length(p_password) < 4 then
     raise exception '编辑密码至少 4 位';
   end if;
+  if p_folder_id is not null and not exists (select 1 from public.folders where id = p_folder_id) then
+    raise exception '文件夹不存在';
+  end if;
 
-  insert into public.documents (slug, title, content_md, password_hash)
+  insert into public.documents (slug, title, content_md, password_hash, folder_id)
   values (
     lower(btrim(p_slug)),
     btrim(p_title),
     coalesce(p_content_md, ''),
-    extensions.crypt(p_password, extensions.gen_salt('bf'))
+    extensions.crypt(p_password, extensions.gen_salt('bf')),
+    p_folder_id
   )
   returning * into v_doc;
 
@@ -263,7 +311,8 @@ end;
 $$;
 
 -- 显式授权给匿名/登录角色（匿名角色只能读和调用函数，不能写表）
-grant execute on function public.create_document(text, text, text, text) to anon, authenticated;
+grant execute on function public.create_folder(text) to anon, authenticated;
+grant execute on function public.create_document(text, text, text, text, uuid) to anon, authenticated;
 grant execute on function public.verify_document_password(uuid, text) to anon, authenticated;
 grant execute on function public.update_document(uuid, text, text, text) to anon, authenticated;
 grant execute on function public.change_document_password(uuid, text, text) to anon, authenticated;

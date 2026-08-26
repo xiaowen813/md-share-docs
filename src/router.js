@@ -5,6 +5,7 @@ import HomeView from './views/HomeView.vue'
 const routes = [
   { path: '/', name: 'home', component: HomeView },
   { path: '/new', name: 'new', component: () => import('./views/NewDocView.vue') },
+  { path: '/folder/:id', name: 'folder', component: () => import('./views/FolderView.vue') },
   { path: '/doc/:id', name: 'read', component: () => import('./views/ReadView.vue'), props: true },
   { path: '/doc/:id/edit', name: 'edit', component: () => import('./views/EditView.vue'), props: true },
 ]
