@@ -1,6 +1,8 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { readMdFile, rememberUpload } from '../lib/uploadSession'
 
 const folders = ref([])
 const docs = ref([])
@@ -11,6 +13,22 @@ const showNewFolder = ref(false)
 const folderName = ref('')
 const folderError = ref('')
 const creatingFolder = ref(false)
+
+const router = useRouter()
+const fileInput = ref(null)
+
+async function onPickFile(e) {
+  const file = e.target.files?.[0]
+  e.target.value = '' // 允许重复选择同一个文件
+  if (!file) return
+  try {
+    const { title, content } = await readMdFile(file)
+    rememberUpload(title, content)
+    router.push('/new')
+  } catch (err) {
+    error.value = err.message || '上传失败'
+  }
+}
 
 function fmtDate(iso) {
   if (!iso) return ''
@@ -58,7 +76,9 @@ onMounted(load)
       <h1>文档列表</h1>
       <div class="head-actions">
         <button class="btn" @click="showNewFolder = true">＋ 新建文件夹</button>
+        <button class="btn" @click="fileInput?.click()">⬆ 上传 .md</button>
         <router-link to="/new" class="btn btn-primary">＋ 新建文档</router-link>
+        <input ref="fileInput" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" class="hidden-file" @change="onPickFile" />
       </div>
     </div>
 

@@ -343,7 +343,8 @@ body {
 .edit-page-light .splitter:hover, .edit-page-light .splitter:active { background: rgba(13, 148, 136, .25); }
 
 /* ---------- 文件夹 ---------- */
-.head-actions { display: flex; gap: 10px; }
+.head-actions { display: flex; gap: 10px; align-items: center; }
+.hidden-file { display: none; }
 .section-title { font-size: 16px; margin: 28px 0 12px; }
 .section-gap { margin-top: 12px; }
 .folder-grid {

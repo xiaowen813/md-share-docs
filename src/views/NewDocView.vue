@@ -1,8 +1,9 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { rememberPassword } from '../lib/editorSession'
+import { takeUpload } from '../lib/uploadSession'
 
 const router = useRouter()
 const route = useRoute()
@@ -25,6 +26,16 @@ function slugify(s) {
     .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
     .replace(/^-+|-+$/g, '')
 }
+
+// 从首页/文件夹页上传 .md 后自动预填标题和内容
+onMounted(() => {
+  const up = takeUpload()
+  if (up && up.title) {
+    title.value = up.title
+    slug.value = slugify(up.title)
+    content.value = up.content
+  }
+})
 
 function onTitleInput() {
   if (!slugTouched.value) slug.value = slugify(title.value)

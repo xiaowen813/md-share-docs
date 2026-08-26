@@ -1,11 +1,14 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import JSZip from 'jszip'
 import { supabase } from '../lib/supabase'
 import { renderMarkdown } from '../lib/markdown'
+import { readMdFile, rememberUpload } from '../lib/uploadSession'
 
 const route = useRoute()
+const router = useRouter()
+const fileInput = ref(null)
 const folder = ref(null)
 const docs = ref([])
 const loading = ref(true)
@@ -16,6 +19,19 @@ const printDocs = ref([])
 function fmtDate(iso) {
   if (!iso) return ''
   return new Date(iso).toLocaleString('zh-CN', { hour12: false })
+}
+
+async function onPickFile(e) {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file) return
+  try {
+    const { title, content } = await readMdFile(file)
+    rememberUpload(title, content)
+    router.push(`/new?folder=${folder.value.id}&name=${encodeURIComponent(folder.value.name)}`)
+  } catch (err) {
+    error.value = err.message || '上传失败'
+  }
 }
 
 async function load() {
@@ -113,6 +129,8 @@ async function downloadAllPdf() {
         <button class="btn" :disabled="downloading !== ''" @click="downloadAllPdf">
           {{ downloading === 'pdf' ? '准备中…' : '下载全部 PDF' }}
         </button>
+        <button class="btn" @click="fileInput?.click()">⬆ 上传 .md</button>
+        <input ref="fileInput" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" class="hidden-file" @change="onPickFile" />
         <router-link :to="`/new?folder=${folder.id}&name=${encodeURIComponent(folder.name)}`" class="btn btn-primary">
           ＋ 新建文档
         </router-link>
