@@ -41,26 +41,22 @@ for (const [name, lang] of [
 }
 
 // ---------- 代码块高亮 ----------
-// 给高亮后的每一行加上行号：行号绝对定位在左，内容区左缩进，
-// 这样打印时长行折行的续行都在内容区内换行，不会和行号重叠
-function addLineNumbers(highlightedHtml) {
-  const lines = highlightedHtml.split('\n')
-  if (lines.length && lines[lines.length - 1] === '') lines.pop() // 去掉末尾空行
-  // 注意：块级 code-line 之间不能留 \n，否则 white-space:pre 会渲染成额外空行
-  return lines
-    .map(
-      (line, i) =>
-        `<span class="code-line"><span class="code-ln">${i + 1}</span><span class="code-content">${line}</span></span>`
-    )
-    .join('')
-}
-
+// 逐行高亮并加行号：每行的高亮 HTML 自闭合，
+// 避免跨行 token（多行字符串/模板字符串/多行注释）拆行后结构错乱、
+// 导致行号错位或行重叠
 marked.use(
   markedHighlight({
     langPrefix: 'hljs language-',
     highlight(code, lang) {
       const language = hljs.getLanguage(lang) ? lang : 'plaintext'
-      return addLineNumbers(hljs.highlight(code, { language }).value)
+      const lines = code.split('\n')
+      if (lines.length && lines[lines.length - 1] === '') lines.pop() // 去掉末尾空行
+      return lines
+        .map((line, i) => {
+          const hl = hljs.highlight(line, { language, ignoreIllegals: true }).value
+          return `<span class="code-line"><span class="code-ln">${i + 1}</span><span class="code-content">${hl}</span></span>`
+        })
+        .join('')
     },
   })
 )
