@@ -1,0 +1,25 @@
+{
+  "name": "md-share-docs",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "部署在 GitHub Pages 的共享 Markdown 文档站（Vue 3 + Vite + Supabase）",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.46.1",
+    "dompurify": "^3.1.7",
+    "highlight.js": "^11.12.0",
+    "marked": "^14.1.2",
+    "marked-highlight": "^2.2.4",
+    "vue": "^3.5.12",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.4",
+    "vite": "^5.4.10"
+  }
+}
