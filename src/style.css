@@ -376,5 +376,8 @@ body {
     border: none; padding: 0; max-width: 100%; box-shadow: none;
     font-size: 20px; line-height: 1.9;
   }
+  /* 打印时代码块单独放大 */
+  .markdown-body pre { font-size: 17px; line-height: 1.7; }
+  .markdown-body pre code { font-size: 17px; }
   .print-only { display: block !important; }
 }
