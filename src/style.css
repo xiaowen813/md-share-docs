@@ -143,7 +143,7 @@ body {
 .markdown-body pre {
   background: var(--code-bg); padding: 14px 16px; border-radius: 9px; overflow-x: auto;
   border: 1px solid var(--border);
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace; font-size: 15px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace; font-size: 17px;
 }
 .markdown-body pre code.hljs { background: transparent; padding: 0; }
 .markdown-body code { background: var(--code-bg); padding: 2px 5px; border-radius: 4px; font-size: .9em; }
@@ -299,7 +299,7 @@ body {
 .edit-page .editor-split { background: var(--surface); }
 .edit-page .markdown-body { font-size: 18px; line-height: 1.8; color: var(--text); }
 .edit-page .pane .preview { background: var(--surface); max-width: none; margin: 0; }
-.edit-page .markdown-body pre { font-size: 15px; }
+.edit-page .markdown-body pre { font-size: 17px; }
 .edit-page .markdown-body code { font-size: .92em; }
 .edit-page .pane textarea { color: #d4d4d4; caret-color: var(--primary); }
 .edit-page .pane textarea:focus { box-shadow: inset 0 0 0 1px var(--primary); }
@@ -374,9 +374,9 @@ body {
   .container { max-width: 100%; padding: 0; }
   .markdown-body {
     border: none; padding: 0; max-width: 100%; box-shadow: none;
-    font-size: 20px; line-height: 1.9;
+    font-size: 18px; line-height: 1.9;
   }
-  /* 打印时代码块单独放大 */
+  /* 打印时代码块（与网页一致） */
   .markdown-body pre { font-size: 17px; line-height: 1.7; }
   .markdown-body pre code { font-size: 17px; }
   .print-only { display: block !important; }

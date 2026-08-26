@@ -2,7 +2,9 @@ import { marked } from 'marked'
 import { markedHighlight } from 'marked-highlight'
 import hljs from 'highlight.js/lib/core'
 import DOMPurify from 'dompurify'
+import katex from 'katex'
 import 'highlight.js/styles/atom-one-dark.css'
+import 'katex/dist/katex.min.css'
 
 // 按需注册常用语言（减小打包体积）
 import javascript from 'highlight.js/lib/languages/javascript'
@@ -67,6 +69,41 @@ marked.use(
     },
   })
 )
+
+// LaTeX 数学公式：$...$ 行内公式、$$...$$ 块级公式（KaTeX 渲染）
+const inlineMath = {
+  name: 'inlineMath',
+  level: 'inline',
+  start(src) {
+    const i = src.indexOf('$')
+    return i === -1 ? undefined : i
+  },
+  tokenizer(src) {
+    const match = src.match(/^\$([^$\n]+?)\$/)
+    if (match) return { type: 'inlineMath', raw: match[0], text: match[1] }
+  },
+  renderer(token) {
+    return katex.renderToString(token.text, { throwOnError: false, displayMode: false })
+  },
+}
+
+const blockMath = {
+  name: 'blockMath',
+  level: 'block',
+  start(src) {
+    const i = src.indexOf('$$')
+    return i === -1 ? undefined : i
+  },
+  tokenizer(src) {
+    const match = src.match(/^\$\$([\s\S]+?)\$\$/)
+    if (match) return { type: 'blockMath', raw: match[0], text: match[1] }
+  },
+  renderer(token) {
+    return `<div class="katex-display">${katex.renderToString(token.text, { throwOnError: false, displayMode: true })}</div>`
+  },
+}
+
+marked.use(inlineMath, blockMath)
 
 marked.setOptions({
   gfm: true,
