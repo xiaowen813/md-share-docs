@@ -396,8 +396,18 @@ body {
     border: none; padding: 0; max-width: 100%; box-shadow: none;
     font-size: 18px; line-height: 1.9;
   }
-  /* 打印时代码块（与网页一致） */
-  .markdown-body pre { font-size: 17px; line-height: 1.7; }
-  .markdown-body pre code { font-size: 17px; }
+  /* 打印时代码块：长行自动换行，避免被页面边缘截断 */
+  .markdown-body pre {
+    font-size: 17px; line-height: 1.7;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+  .markdown-body pre code {
+    font-size: 17px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
   .print-only { display: block !important; }
 }
