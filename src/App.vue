@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { isSupabaseConfigured } from './lib/supabase'
 
@@ -7,16 +7,22 @@ const route = useRoute()
 // 编辑页需要更宽的工作区，容器铺满浏览器宽度
 const isEditor = computed(() => route.name === 'edit')
 
-// 全站主题：黑底白字 / 白底黑字（记住选择）
+// 全站主题：黑夜 / 白天。
+// 主题 class 挂到 <html> 根元素上，这样 body 和整个页面（包括背景）一起切换
 const theme = ref(localStorage.getItem('mdshare-theme') || 'light')
+function applyTheme(t) {
+  document.documentElement.classList.toggle('theme-dark', t === 'dark')
+  localStorage.setItem('mdshare-theme', t)
+}
 function toggleTheme() {
   theme.value = theme.value === 'dark' ? 'light' : 'dark'
-  localStorage.setItem('mdshare-theme', theme.value)
 }
+watch(theme, applyTheme, { immediate: true })
+onMounted(() => applyTheme(theme.value))
 </script>
 
 <template>
-  <div class="app" :class="theme === 'dark' ? 'theme-dark' : ''">
+  <div class="app">
     <header class="topbar no-print">
       <router-link to="/" class="brand">
         <svg class="logo" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
@@ -28,8 +34,8 @@ function toggleTheme() {
       <div class="spacer"></div>
       <nav class="nav">
         <router-link to="/" class="nav-link">文档列表</router-link>
-        <button class="btn btn-ghost" :title="theme === 'dark' ? '切换到白底黑字' : '切换到黑底白字'" @click="toggleTheme">
-          {{ theme === 'dark' ? '☀ 白底黑字' : '🌙 黑底白字' }}
+        <button class="btn btn-ghost" :title="theme === 'dark' ? '切换到白天' : '切换到黑夜'" @click="toggleTheme">
+          {{ theme === 'dark' ? '☀ 白天' : '🌙 黑夜' }}
         </button>
         <router-link to="/new" class="btn btn-primary btn-sm">＋ 新建文档</router-link>
       </nav>
