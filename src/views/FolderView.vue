@@ -16,6 +16,7 @@ const loading = ref(true)
 const error = ref('')
 const downloading = ref('')
 const printDocs = ref([])
+const printWrapRef = ref(null)
 
 function fmtDate(iso) {
   if (!iso) return ''

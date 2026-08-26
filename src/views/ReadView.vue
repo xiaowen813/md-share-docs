@@ -9,6 +9,7 @@ const props = defineProps({ id: { type: String, required: true } })
 const doc = ref(null)
 const loading = ref(true)
 const error = ref('')
+const contentEl = ref(null)
 
 const html = computed(() => (doc.value ? renderMarkdown(doc.value.content_md) : ''))
 

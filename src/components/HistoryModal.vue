@@ -15,6 +15,7 @@ const loading = ref(true)
 const error = ref('')
 const viewing = ref(null) // 正在查看的版本
 const restoring = ref(false)
+const previewRef = ref(null)
 
 const viewingHtml = computed(() => (viewing.value ? renderMarkdown(viewing.value.content_md) : ''))
 
