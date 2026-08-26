@@ -1,7 +1,8 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { supabase } from '../lib/supabase'
 import { renderMarkdown } from '../lib/markdown'
+import { renderMermaidElements } from '../lib/mermaid'
 
 const props = defineProps({ id: { type: String, required: true } })
 
@@ -21,6 +22,8 @@ async function load() {
   else if (!data) error.value = '文档不存在'
   else doc.value = data
   loading.value = false
+  await nextTick()
+  renderMermaidElements(contentEl.value)
 }
 onMounted(load)
 
@@ -55,7 +58,7 @@ function downloadPdf() {
         <router-link :to="`/doc/${doc.id}/edit`" class="btn btn-primary">编辑</router-link>
       </div>
 
-      <article class="markdown-body" v-html="html"></article>
+      <article ref="contentEl" class="markdown-body" v-html="html"></article>
       <p class="muted no-print" style="text-align:center;margin-top:12px">
         💡 下载 PDF 时，在浏览器打印对话框里选择“另存为 PDF”即可
       </p>

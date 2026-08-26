@@ -1,8 +1,9 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { renderMarkdown } from '../lib/markdown'
+import { renderMermaidElements } from '../lib/mermaid'
 import { takePassword } from '../lib/editorSession'
 import ChangePasswordModal from '../components/ChangePasswordModal.vue'
 import HistoryModal from '../components/HistoryModal.vue'
@@ -27,6 +28,11 @@ const saving = ref(false)
 const dirty = computed(() => content.value !== savedContent)
 
 const previewHtml = computed(() => renderMarkdown(content.value))
+
+// 预览内容变化后渲染 Mermaid 图
+watch(previewHtml, () => {
+  nextTick(() => renderMermaidElements(splitRef.value))
+})
 
 const showChangePw = ref(false)
 const showHistory = ref(false)

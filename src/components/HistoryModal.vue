@@ -1,7 +1,8 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { supabase } from '../lib/supabase'
 import { renderMarkdown } from '../lib/markdown'
+import { renderMermaidElements } from '../lib/mermaid'
 
 const props = defineProps({
   docId: { type: String, required: true },
@@ -39,6 +40,11 @@ function viewVersion(v) {
   viewing.value = v
 }
 
+// 查看版本时渲染 Mermaid 图
+watch(viewing, () => {
+  nextTick(() => renderMermaidElements(previewRef.value))
+})
+
 async function restore(v) {
   if (!confirm(`确定恢复到 ${fmtDate(v.created_at)} 的版本吗？
 恢复前会先把当前内容存为历史。`)) return
@@ -74,7 +80,7 @@ async function restore(v) {
             {{ restoring ? '恢复中…' : '恢复此版本' }}
           </button>
         </div>
-        <div class="preview markdown-body" v-html="viewingHtml"></div>
+        <div ref="previewRef" class="preview markdown-body" v-html="viewingHtml"></div>
       </template>
 
       <!-- 版本列表视图 -->

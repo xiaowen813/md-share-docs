@@ -1,9 +1,10 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import JSZip from 'jszip'
 import { supabase } from '../lib/supabase'
 import { renderMarkdown } from '../lib/markdown'
+import { renderMermaidElements } from '../lib/mermaid'
 import { readMdFile, rememberUpload } from '../lib/uploadSession'
 
 const route = useRoute()
@@ -102,6 +103,8 @@ async function downloadAllPdf() {
     const list = await fetchAllDocs()
     if (list.length === 0) { alert('这个文件夹里还没有文档'); return }
     printDocs.value = list
+    await nextTick()
+    await renderMermaidElements(printWrapRef.value)
     setTimeout(() => window.print(), 150)
   } catch (e) {
     error.value = e.message || '下载失败'
@@ -159,7 +162,7 @@ async function downloadAllPdf() {
       </div>
 
       <!-- 打印容器：仅打印时显示，输出合并 PDF -->
-      <div v-if="printDocs.length" class="print-only">
+      <div v-if="printDocs.length" ref="printWrapRef" class="print-only">
         <article
           v-for="doc in printDocs"
           :key="doc.id"
