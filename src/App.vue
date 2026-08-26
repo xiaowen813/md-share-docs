@@ -1,15 +1,22 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { isSupabaseConfigured } from './lib/supabase'
 
 const route = useRoute()
 // 编辑页需要更宽的工作区，容器铺满浏览器宽度
 const isEditor = computed(() => route.name === 'edit')
+
+// 全站主题：黑底白字 / 白底黑字（记住选择）
+const theme = ref(localStorage.getItem('mdshare-theme') || 'light')
+function toggleTheme() {
+  theme.value = theme.value === 'dark' ? 'light' : 'dark'
+  localStorage.setItem('mdshare-theme', theme.value)
+}
 </script>
 
 <template>
-  <div class="app">
+  <div class="app" :class="theme === 'dark' ? 'theme-dark' : ''">
     <header class="topbar no-print">
       <router-link to="/" class="brand">
         <svg class="logo" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
@@ -21,6 +28,9 @@ const isEditor = computed(() => route.name === 'edit')
       <div class="spacer"></div>
       <nav class="nav">
         <router-link to="/" class="nav-link">文档列表</router-link>
+        <button class="btn btn-ghost" :title="theme === 'dark' ? '切换到白底黑字' : '切换到黑底白字'" @click="toggleTheme">
+          {{ theme === 'dark' ? '☀ 白底黑字' : '🌙 黑底白字' }}
+        </button>
         <router-link to="/new" class="btn btn-primary btn-sm">＋ 新建文档</router-link>
       </nav>
     </header>

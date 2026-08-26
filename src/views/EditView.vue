@@ -36,11 +36,6 @@ watch(previewHtml, () => {
 
 const showChangePw = ref(false)
 const showHistory = ref(false)
-const theme = ref('dark') // 'dark' = 黑底白字, 'light' = 白底黑字（作用于整个编辑界面）
-
-function toggleTheme() {
-  theme.value = theme.value === 'dark' ? 'light' : 'dark'
-}
 
 // 左右分栏拖拽
 const splitRef = ref(null)
@@ -266,7 +261,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section :class="['edit-page', theme === 'light' ? 'edit-page-light' : '']">
+  <section class="edit-page">
     <p v-if="loading" class="muted">加载中…</p>
     <p v-else-if="error && !doc" class="error">{{ error }}</p>
 
@@ -299,9 +294,6 @@ onBeforeUnmount(() => {
         <span v-if="message" class="message">{{ message }}</span>
         <span v-if="error" class="error">{{ error }}</span>
         <div class="spacer"></div>
-        <button class="btn btn-ghost" @click="toggleTheme">
-          {{ theme === 'dark' ? '☀ 白底黑字' : '🌙 黑底白字' }}
-        </button>
         <button class="btn btn-ghost" @click="showHistory = true">🕘 历史版本</button>
         <button class="btn btn-ghost" @click="showChangePw = true">🔑 改密码</button>
         <button class="btn btn-danger" @click="removeDoc">删除</button>

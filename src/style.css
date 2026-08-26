@@ -299,8 +299,8 @@ body {
 .fmt-sep { width: 1px; height: 18px; background: var(--border); margin: 0 6px; }
 .fmt-hint { color: var(--muted); font-size: 12px; }
 
-/* ---------- 编辑页深色主题（HackMD / VSCode 风格） ---------- */
-.edit-page {
+/* ---------- 全站深色主题（黑底白字，顶栏按钮切换） ---------- */
+.theme-dark {
   --bg: #16181d;
   --surface: #1e2127;
   --border: #33363e;
@@ -314,52 +314,34 @@ body {
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
   --shadow-md: 0 6px 20px rgba(0, 0, 0, .4);
 }
+/* 深色模式下写死的颜色覆盖 */
+.theme-dark .topbar { background: rgba(30, 33, 39, .92); }
+.theme-dark .btn:hover { background: #2a2e36; }
+.theme-dark .btn-ghost:hover { background: rgba(255, 255, 255, .07); color: var(--text); }
+.theme-dark .btn:not(.btn-primary):not(.btn-danger) { box-shadow: none; }
+.theme-dark .title-input:hover { background: #262a31; }
+.theme-dark .title-input:focus { background: #1a1d22; border-color: var(--primary); }
+.theme-dark .field input, .theme-dark .field textarea {
+  background: var(--code-bg); color: var(--text); border-color: var(--border);
+}
+.theme-dark .doc-card:hover, .theme-dark .folder-card:hover { border-color: #2f6f66; }
+.theme-dark .splitter:hover, .theme-dark .splitter:active { background: rgba(45, 212, 191, .35); }
+.theme-dark .markdown-body blockquote { background: var(--primary-soft); }
+.theme-dark .markdown-body a { color: var(--primary); }
+.theme-dark .markdown-body .toc a:hover { color: var(--primary); }
+.theme-dark .nav-link:hover { color: var(--primary); }
+
+/* ---------- 编辑页布局（主题跟随全局） ---------- */
 .edit-page { color: var(--text); }
 .edit-page .editor-split { background: var(--surface); }
 .edit-page .markdown-body { font-size: 18px; line-height: 1.8; color: var(--text); }
 .edit-page .pane .preview { background: var(--surface); max-width: none; margin: 0; }
 .edit-page .markdown-body pre { font-size: 17px; }
 .edit-page .markdown-body code { font-size: .92em; }
-.edit-page .pane textarea { color: #d4d4d4; caret-color: var(--primary); }
+.edit-page .pane textarea { color: var(--text); caret-color: var(--primary); }
 .edit-page .pane textarea:focus { box-shadow: inset 0 0 0 1px var(--primary); }
-.edit-page .title-input:hover { background: #262a31; }
-.edit-page .title-input:focus { background: #1a1d22; border-color: var(--primary); }
-.edit-page .splitter { border-left-color: var(--border); }
-.edit-page .splitter:hover, .edit-page .splitter:active { background: rgba(45, 212, 191, .35); }
-.edit-page .btn-ghost:hover { background: rgba(255, 255, 255, .07); color: var(--text); }
-.edit-page .btn:hover { background: #2a2e36; }
-.edit-page .btn:not(.btn-primary):not(.btn-danger) { box-shadow: none; }
-.edit-page .markdown-body blockquote { background: var(--primary-soft); }
-.edit-page .markdown-body a { color: var(--primary); }
 .edit-page .format-bar { background: var(--code-bg); }
 .edit-page .pane-label { background: var(--border); }
-.edit-page .field input, .edit-page .field textarea {
-  background: var(--code-bg); color: var(--text); border-color: var(--border);
-}
-
-/* 编辑页浅色主题：白底黑字（切换按钮控制，作用于整个编辑界面） */
-.edit-page-light {
-  --bg: #f6f8fa;
-  --surface: #ffffff;
-  --border: #e4e7ec;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --primary: #0d9488;
-  --primary-dark: #0f766e;
-  --primary-soft: #f0fdfa;
-  --danger: #dc2626;
-  --code-bg: #f4f5f7;
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, .06);
-  --shadow-md: 0 4px 16px rgba(16, 24, 40, .08);
-  color: #1f2937;
-}
-/* 覆盖深色主题里写死的颜色，恢复浅色观感 */
-.edit-page-light .pane textarea { color: #1f2937; }
-.edit-page-light .title-input:hover { background: #f3f5f7; }
-.edit-page-light .title-input:focus { background: #ffffff; border-color: var(--primary); }
-.edit-page-light .btn-ghost:hover { background: #f0f2f5; color: var(--text); }
-.edit-page-light .btn:hover { background: #f3f5f7; }
-.edit-page-light .splitter:hover, .edit-page-light .splitter:active { background: rgba(13, 148, 136, .25); }
 
 /* ---------- 扩展语法样式 ---------- */
 .markdown-body .toc {
@@ -410,6 +392,13 @@ body {
 @media print {
   .no-print { display: none !important; }
   body { background: #fff; }
+  /* 深色主题下打印强制恢复黑白，避免文字浅色看不清 */
+  .theme-dark {
+    --bg: #ffffff; --surface: #ffffff; --border: #e4e7ec;
+    --text: #1f2937; --muted: #6b7280; --primary: #0d9488;
+    --primary-soft: #f0fdfa; --danger: #dc2626; --code-bg: #f5f6f8;
+  }
+  .markdown-body pre, .markdown-body pre code.hljs { background: #f5f6f8 !important; }
   .container { max-width: 100%; padding: 0; }
   .markdown-body {
     border: none; padding: 0; max-width: 100%; box-shadow: none;
