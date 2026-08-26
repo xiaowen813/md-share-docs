@@ -46,12 +46,13 @@ for (const [name, lang] of [
 function addLineNumbers(highlightedHtml) {
   const lines = highlightedHtml.split('\n')
   if (lines.length && lines[lines.length - 1] === '') lines.pop() // 去掉末尾空行
+  // 注意：块级 code-line 之间不能留 \n，否则 white-space:pre 会渲染成额外空行
   return lines
     .map(
       (line, i) =>
         `<span class="code-line"><span class="code-ln">${i + 1}</span><span class="code-content">${line}</span></span>`
     )
-    .join('\n')
+    .join('')
 }
 
 marked.use(
