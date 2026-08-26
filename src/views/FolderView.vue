@@ -9,6 +9,12 @@ import { readMdFile, rememberUpload } from '../lib/uploadSession'
 
 const route = useRoute()
 const router = useRouter()
+
+// 返回上一页（从哪进来回哪去）；没有上一页时才回首页
+function goBack() {
+  if (window.history.state && window.history.state.back) router.back()
+  else router.push('/')
+}
 const fileInput = ref(null)
 const folder = ref(null)
 const docs = ref([])
@@ -123,7 +129,7 @@ async function downloadAllPdf() {
 
     <template v-else-if="folder">
       <div class="toolbar no-print">
-        <router-link to="/" class="btn btn-ghost">← 返回</router-link>
+        <button class="btn btn-ghost" @click="goBack">← 返回</button>
         <h1 class="doc-title">📁 {{ folder.name }}</h1>
         <span class="muted">{{ docs.length }} 篇文档</span>
         <div class="spacer"></div>

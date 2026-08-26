@@ -1,10 +1,18 @@
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { renderMarkdown } from '../lib/markdown'
 import { renderMermaidElements } from '../lib/mermaid'
 
 const props = defineProps({ id: { type: String, required: true } })
+const router = useRouter()
+
+// 返回上一页（从哪进来回哪去）；没有上一页时才回首页
+function goBack() {
+  if (window.history.state && window.history.state.back) router.back()
+  else router.push('/')
+}
 
 const doc = ref(null)
 const loading = ref(true)
@@ -51,7 +59,7 @@ function downloadPdf() {
 
     <template v-else-if="doc">
       <div class="toolbar no-print">
-        <router-link to="/" class="btn">← 返回</router-link>
+        <button class="btn" @click="goBack">← 返回</button>
         <h1 class="doc-title">{{ doc.title }}</h1>
         <div class="spacer"></div>
         <button class="btn" @click="downloadMd">下载 .md</button>
