@@ -149,17 +149,24 @@ body {
 .markdown-body pre code.hljs { background: transparent; padding: 0; }
 .markdown-body code { background: var(--code-bg); padding: 2px 5px; border-radius: 4px; font-size: .9em; font-family: var(--mono); }
 .markdown-body pre code { background: none; padding: 0; }
-/* 代码块行号：行号绝对定位在左，内容区左缩进，折行不重叠 */
-.markdown-body .code-line { position: relative; display: block; padding-left: 3.8em; }
+/* 代码块行号：flex 固定行号列，内容区独立，行号始终同列、折行不重叠 */
+.markdown-body .code-line { display: flex; }
 .markdown-body .code-ln {
-  position: absolute; left: 0; top: 0;
-  width: 3em; padding-right: 0.9em;
-  text-align: right; box-sizing: border-box;
+  flex: 0 0 3.4em;
+  padding-right: 0.9em;
+  margin-right: 0.9em;
+  text-align: right;
+  box-sizing: border-box;
   color: var(--muted); opacity: .8;
   border-right: 1px solid var(--border);
   user-select: none;
 }
-.markdown-body .code-content { display: block; }
+.markdown-body .code-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 1em; /* 空行也要有高度，否则空行会消失 */
+  white-space: pre;
+}
 .markdown-body img { max-width: 100%; }
 .markdown-body blockquote { border-left: 4px solid var(--primary); margin-left: 0; padding-left: 16px; color: var(--muted); background: var(--primary-soft); border-radius: 0 8px 8px 0; }
 .markdown-body table { border-collapse: collapse; }
@@ -415,6 +422,7 @@ body {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     word-break: break-all;
+    min-height: 1em;
   }
   .markdown-body .code-ln { color: #9aa0aa; }
   .print-only { display: block !important; }
