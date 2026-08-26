@@ -41,12 +41,20 @@ for (const [name, lang] of [
 }
 
 // ---------- 代码块高亮 ----------
+// 给高亮后的每一行前面插入行号标记（编辑预览/阅读/打印都会显示）
+function addLineNumbers(highlightedHtml) {
+  return highlightedHtml
+    .split('\n')
+    .map((line, i) => `<span class="code-ln">${i + 1}</span>${line}`)
+    .join('\n')
+}
+
 marked.use(
   markedHighlight({
     langPrefix: 'hljs language-',
     highlight(code, lang) {
       const language = hljs.getLanguage(lang) ? lang : 'plaintext'
-      return hljs.highlight(code, { language }).value
+      return addLineNumbers(hljs.highlight(code, { language }).value)
     },
   })
 )
