@@ -171,9 +171,9 @@ async function downloadAllPdf() {
 }
 
 // A4 打印可用尺寸（@page: A4 + margin 14mm/16mm/16mm，总内容高约 1010px）
-// PAGE_H = 985：底部留 25px 页码区（页码固定显示在此空白区，不与内容重叠）
+// PAGE_H = 940：底部预留页码区 + 测量误差缓冲，保证不丢行、页码不重叠
 const PAGE_W = 674
-const PAGE_H = 985
+const PAGE_H = 940
 
 // 把打印容器里的内容重排为：封面页 + 目录页 + 按块分页的正文页，并加页码
 function paginateAndPrint(wrap, folderName, docs) {
@@ -246,7 +246,8 @@ function paginateAndPrint(wrap, folderName, docs) {
     }
   }
 
-  // 代码块按行跨页拆分：填满当前页剩余空间，超高自动续页，不整块跳页也不截断
+  // 代码块按行跨页拆分（批量版）：整段放入 → 整体测量 → 修剪超出行。
+  // 相比逐行测量，layout 次数从几千次降到每段几次，大幅提速
   const SEG_PAD = 30 // 代码段上下 padding(14px×2) + 边框(1px×2)
   const addCodeLines = (pre, isBody) => {
     const lines = Array.from(pre.querySelectorAll('.code-line, .src-line'))
@@ -255,7 +256,8 @@ function paginateAndPrint(wrap, folderName, docs) {
       addBlock(pre, isBody)
       return
     }
-    const mkSeg = () => {
+    let i = 0
+    while (i < lines.length) {
       if (!page) {
         newPage()
         if (isBody) pageNo++
@@ -266,27 +268,32 @@ function paginateAndPrint(wrap, folderName, docs) {
       segPre.className = 'code-seg'
       w.appendChild(segPre)
       page.appendChild(w)
-      return w
-    }
-    let segWrap = null
-    for (const line of lines) {
-      if (!segWrap) {
-        segWrap = mkSeg()
-        used += SEG_PAD
+      used += SEG_PAD
+      // 采样行高，估算本段可放行数（多放几行再修剪）
+      segPre.appendChild(lines[i])
+      const rowH = lines[i].offsetHeight || 20
+      const avail = Math.max(0, PAGE_H - used)
+      const est = Math.max(1, Math.floor(avail / Math.max(rowH, 10)))
+      let end = Math.min(lines.length, i + est + 2)
+      for (let k = i + 1; k < end; k++) segPre.appendChild(lines[k])
+      // 修剪：段超高则从末尾逐行移除（每段通常只需 0~2 次）
+      let guard = 0
+      while (end > i + 1 && used + w.offsetHeight - SEG_PAD > PAGE_H && guard++ < 50) {
+        segPre.removeChild(segPre.lastElementChild)
+        end--
       }
-      // 先挂载再测量：移动前后环境一致，避免测量偏差导致页尾丢行
-      segWrap.querySelector('pre').appendChild(line)
-      const h = line.offsetHeight || 20
-      if (used + h > PAGE_H) {
-        // 当前页放不下：移到新页重放（行已在旧页，重复 append 会自动移动）
+      // 修剪后仍超高（单行过长/超高行）：整段移到新页开头，避免页尾被裁
+      if (used + w.offsetHeight - SEG_PAD > PAGE_H) {
         closePage()
-        segWrap = mkSeg()
-        used = SEG_PAD
-        segWrap.querySelector('pre').appendChild(line)
-        used += line.offsetHeight || 20
+        if (isBody) pageNo++
+        newPage()
+        page.appendChild(w) // 重复 append 自动从旧页移走
+        used = w.offsetHeight
       } else {
-        used += h
+        used += w.offsetHeight - SEG_PAD
       }
+      i = end
+      if (i < lines.length) closePage()
     }
     pre.remove() // 行已全部移走，移除空壳
   }
@@ -322,72 +329,8 @@ function paginateAndPrint(wrap, folderName, docs) {
   // 移除被掏空的 article 空壳
   articles.forEach((a) => a.remove())
 
-  // ---------- 自愈：分页后检查每页实际高度，溢出的块/代码行移到下一页 ----------
-  // 无论测量有多少误差，都能保证页尾不丢行、页码不与内容重叠
-  const makeSegIn = (p) => {
-    const w = document.createElement('div')
-    w.className = 'markdown-body'
-    const segPre = document.createElement('pre')
-    segPre.className = 'code-seg'
-    w.appendChild(segPre)
-    p.insertBefore(w, p.querySelector('.print-page-num') || null)
-    return w
-  }
-  const healPages = () => {
-    // 多轮处理：单轮中前一页会把块推给下一页导致链式污染，
-    // 循环到没有溢出为止（最多 15 轮）
-    let rounds = 0
-    let anyMoved = true
-    while (anyMoved && rounds++ < 15) {
-      anyMoved = false
-      for (let i = 0; i < pages.length - 1; i++) {
-        const p = pages[i]
-        let guard = 0
-        while (p.scrollHeight > PAGE_H + 1 && guard++ < 200) {
-        const next = pages[i + 1]
-        const blocks = [...p.children].filter((c) => !c.classList.contains('print-page-num'))
-        let movedAny = false
-        for (let j = blocks.length - 1; j >= 0; j--) {
-          const b = blocks[j]
-          if (b.offsetTop + b.offsetHeight <= PAGE_H) continue
-          const pre = b.querySelector('pre.code-seg')
-          if (pre) {
-            // 代码段：把超出页底的那行及之后的行移到下一页新段
-            const lines = [...pre.querySelectorAll('.code-line, .src-line')]
-            let movedLine = false
-            for (let k = 0; k < lines.length; k++) {
-              if (lines[k].offsetTop + lines[k].offsetHeight > PAGE_H) {
-                const nextSeg = makeSegIn(next)
-                for (let m = k; m < lines.length; m++) nextSeg.querySelector('pre').appendChild(lines[m])
-                if (pre.querySelectorAll('.code-line, .src-line').length === 0) b.remove()
-                movedLine = true
-                break
-              }
-            }
-            if (movedLine) { movedAny = true; break }
-          } else {
-            // 普通块整体移到下一页顶部
-            next.insertBefore(b, next.querySelector('.print-page-num') || null)
-            movedAny = true
-            break
-          }
-        }
-        if (!movedAny) {
-          // 兜底：检测不到具体溢出块（如最后一块的底部 margin 计入 scrollHeight）时，
-          // 强制把最后一个内容块移到下一页
-          const last = blocks[blocks.length - 1]
-          if (last) {
-            next.insertBefore(last, next.querySelector('.print-page-num') || null)
-            movedAny = true
-          }
-        }
-          if (!movedAny) break
-          anyMoved = true
-        }
-      }
-    }
-  }
-  healPages()
+  // 注：不做事后自愈——分页测量已计入 margin/阻止折叠 + PAGE_H 保守，
+  // 事后逐页检查会触发大量 layout 导致打印前卡死（曾有 2 分钟卡顿和空白 PDF）
 
   // 正文页右下角加页码（封面/目录页不加）
   pages.forEach((p, i) => {
