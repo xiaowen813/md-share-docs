@@ -430,14 +430,47 @@ body {
 .folder-info p { margin: 0; font-size: 12px; }
 
 /* ---------- 打印容器（文件夹全部 PDF） ---------- */
-.print-only { display: none; }
-.print-doc { page-break-after: always; break-after: page; }
-.print-doc:last-child { page-break-after: auto; break-after: auto; }
+/* 屏幕显示时移到屏幕外（保持可测量），打印时回到原位 */
+.print-only { position: absolute; left: -10000px; top: 0; width: 674px; }
 .print-doc-title { font-size: 30px; margin: 0 0 16px; }
 
+/* JS 分页：每页固定 A4 内容高度，右下角页码 */
+.print-page {
+  height: 1010px; box-sizing: border-box; overflow: hidden;
+  position: relative; break-after: page; page-break-after: always;
+  padding-bottom: 36px;
+}
+.print-page:last-child { break-after: auto; page-break-after: auto; }
+.print-page-num {
+  position: absolute; right: 2px; bottom: 8px;
+  font-size: 11px; color: #888;
+}
+
+/* 封面 */
+.print-cover {
+  height: 100%; display: flex; flex-direction: column;
+  justify-content: center; align-items: center; text-align: center;
+  padding: 0 48px;
+}
+.print-cover h1 { font-size: 46px; margin: 0 0 22px; }
+.print-cover p { font-size: 20px; color: #666; }
+
+/* 目录 */
+.print-toc { padding: 10px 20px; }
+.print-toc h2 { font-size: 26px; margin: 0 0 18px; }
+.print-toc ul { list-style: none; padding: 0; margin: 0; }
+.print-toc li {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 16px; padding: 9px 0; border-bottom: 1px solid #ddd; font-size: 17px;
+}
+.print-toc .toc-title { font-weight: 600; }
+.print-toc .toc-page { color: #555; white-space: nowrap; }
+
 @media print {
+  @page { size: A4; margin: 14mm 16mm 16mm; }
   .no-print { display: none !important; }
   body { background: #fff; }
+  .print-only { position: static; left: auto; width: auto; }
   /* 深色主题下打印强制恢复黑白，避免文字浅色看不清 */
   .theme-dark {
     --bg: #ffffff; --surface: #ffffff; --border: #e4e7ec;
@@ -460,5 +493,4 @@ body {
     min-height: 1em;
   }
   .markdown-body .code-ln { color: #9aa0aa; }
-  .print-only { display: block !important; }
 }

@@ -135,7 +135,11 @@ async function downloadAllMd() {
   }
 }
 
-// 一键导出全部 PDF：把所有文档渲染进打印容器 → 浏览器打印 → 另存为 PDF（合并成一份）
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// 一键导出全部 PDF：JS 分页 → 封面 + 目录（含页码）+ 正文每页右下角页码
 async function downloadAllPdf() {
   downloading.value = 'pdf'
   error.value = ''
@@ -145,13 +149,110 @@ async function downloadAllPdf() {
     printDocs.value = list
     await nextTick()
     await renderMermaidElements(printWrapRef.value)
-    setTimeout(() => window.print(), 150)
+    await nextTick()
+    paginateAndPrint(printWrapRef.value, folder.value.name, list)
   } catch (e) {
     error.value = e.message || '下载失败'
     printDocs.value = []
   } finally {
     downloading.value = ''
   }
+}
+
+// A4 打印可用尺寸（@page: A4 + margin 14mm/16mm/16mm）
+const PAGE_W = 674
+const PAGE_H = 1010
+
+// 把打印容器里的内容重排为：封面页 + 目录页 + 按块分页的正文页，并加页码
+function paginateAndPrint(wrap, folderName, docs) {
+  const articles = Array.from(wrap.querySelectorAll('.print-doc'))
+  wrap.innerHTML = ''
+
+  // 封面
+  const cover = document.createElement('div')
+  cover.className = 'print-cover'
+  cover.innerHTML = `<h1>${escapeHtml(folderName)}</h1><p>共 ${docs.length} 篇文档</p>`
+
+  // 目录（页码稍后回填）
+  const toc = document.createElement('div')
+  toc.className = 'print-toc'
+  toc.innerHTML =
+    '<h2>目录</h2><ul>' +
+    docs
+      .map((d, i) => `<li data-idx="${i}"><span class="toc-title">${escapeHtml(d.title)}</span><span class="toc-page"></span></li>`)
+      .join('') +
+    '</ul>'
+
+  // 正文块：每篇文档的标题 + 正文子块
+  const blocks = []
+  articles.forEach((article, di) => {
+    const titleEl = article.querySelector('.print-doc-title')
+    const body = article.querySelector('.markdown-body')
+    if (titleEl) blocks.push({ el: titleEl, docIndex: di })
+    if (body) Array.from(body.children).forEach((el) => blocks.push({ el, docIndex: di }))
+  })
+
+  // 分页器
+  let page = null
+  let used = 0
+  let pageNo = 0 // 正文页码从 1 开始
+  const pages = []
+  const newPage = () => {
+    page = document.createElement('div')
+    page.className = 'print-page'
+    wrap.appendChild(page)
+    pages.push(page)
+    used = 0
+    return page
+  }
+  const closePage = () => { page = null }
+
+  const addBlock = (el, isBody) => {
+    const h = el.offsetHeight
+    if (page && used + h > PAGE_H) closePage()
+    if (!page) {
+      newPage()
+      if (isBody) pageNo++
+    }
+    page.appendChild(el)
+    used += h
+  }
+
+  // 封面页
+  newPage()
+  wrap.lastChild.appendChild(cover)
+  closePage()
+  // 目录页
+  newPage()
+  wrap.lastChild.appendChild(toc)
+  closePage()
+
+  // 正文分页，记录每篇文档标题所在页
+  const docStartPage = new Map()
+  for (const b of blocks) {
+    const isTitle = b.el.classList.contains('print-doc-title')
+    addBlock(b.el, true)
+    if (isTitle) docStartPage.set(b.docIndex, pageNo)
+  }
+  closePage()
+
+  // 正文页右下角加页码（封面/目录页不加）
+  pages.forEach((p, i) => {
+    if (i < 2) return
+    const num = document.createElement('div')
+    num.className = 'print-page-num'
+    num.textContent = String(i - 1)
+    p.appendChild(num)
+  })
+
+  // 回填目录页码
+  toc.querySelectorAll('li[data-idx]').forEach((li) => {
+    const idx = Number(li.dataset.idx)
+    const pg = docStartPage.get(idx)
+    if (pg) li.querySelector('.toc-page').textContent = '第 ' + pg + ' 页'
+  })
+
+  setTimeout(() => window.print(), 150)
 }
 </script>
 
