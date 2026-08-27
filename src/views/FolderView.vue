@@ -169,10 +169,10 @@ async function downloadAllPdf() {
   }
 }
 
-// A4 打印可用尺寸（@page: A4 + margin 14mm/16mm/16mm）
-// PAGE_H 留 4px 安全余量，避免字体/渲染差异导致页尾溢出
+// A4 打印可用尺寸（@page: A4 + margin 14mm/16mm/16mm，总内容高约 1010px）
+// PAGE_H = 内容区高度：1010 - 4px 安全余量 - 28px 页码区，页码显示在底部空白区不重叠
 const PAGE_W = 674
-const PAGE_H = 1006
+const PAGE_H = 978
 
 // 把打印容器里的内容重排为：封面页 + 目录页 + 按块分页的正文页，并加页码
 function paginateAndPrint(wrap, folderName, docs) {
@@ -245,32 +245,42 @@ function paginateAndPrint(wrap, folderName, docs) {
   const addCodeLines = (pre, isBody) => {
     const lines = Array.from(pre.querySelectorAll('.code-line, .src-line'))
     if (!lines.length) {
-      // 无行结构的 pre（如 LaTeX/Typst 源码视图）按整块处理
+      // 无行结构的 pre 按整块处理
       addBlock(pre, isBody)
       return
     }
-    let segWrap = null
-    for (const line of lines) {
-      const lineH = line.offsetHeight || 20
-      const pad = segWrap ? 0 : SEG_PAD
-      if (!page || used + lineH + pad > PAGE_H) {
-        closePage()
+    const mkSeg = () => {
+      if (!page) {
         newPage()
         if (isBody) pageNo++
-        segWrap = null
-        used = 0
       }
+      const w = document.createElement('div')
+      w.className = 'markdown-body'
+      const segPre = document.createElement('pre')
+      segPre.className = 'code-seg'
+      w.appendChild(segPre)
+      page.appendChild(w)
+      return w
+    }
+    let segWrap = null
+    for (const line of lines) {
       if (!segWrap) {
-        segWrap = document.createElement('div')
-        segWrap.className = 'markdown-body'
-        const segPre = document.createElement('pre')
-        segPre.className = 'code-seg'
-        segWrap.appendChild(segPre)
-        page.appendChild(segWrap)
+        segWrap = mkSeg()
         used += SEG_PAD
       }
+      // 先挂载再测量：移动前后环境一致，避免测量偏差导致页尾丢行
       segWrap.querySelector('pre').appendChild(line)
-      used += lineH
+      const h = line.offsetHeight || 20
+      if (used + h > PAGE_H) {
+        // 当前页放不下：移到新页重放（行已在旧页，重复 append 会自动移动）
+        closePage()
+        segWrap = mkSeg()
+        used = SEG_PAD
+        segWrap.querySelector('pre').appendChild(line)
+        used += line.offsetHeight || 20
+      } else {
+        used += h
+      }
     }
     pre.remove() // 行已全部移走，移除空壳
   }
