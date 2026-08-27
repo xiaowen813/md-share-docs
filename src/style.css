@@ -520,7 +520,8 @@ body {
   @page { size: A4; margin: 14mm 16mm 16mm; }
   .no-print { display: none !important; }
   body { background: #fff; }
-  .print-only { position: static; left: auto; width: auto; }
+  /* 打印宽度与屏幕测量宽度保持一致（674px），否则折行数变化会导致高度不一致 */
+  .print-only { position: static; left: auto; width: 674px; }
   /* 深色主题下打印强制恢复黑白，避免文字浅色看不清 */
   .theme-dark {
     --bg: #ffffff; --surface: #ffffff; --border: #e4e7ec;
