@@ -412,6 +412,8 @@ body {
 }
 .src-view .src-math { font-family: inherit; }
 .src-view .src-math .katex { font-size: 1.15em; }
+.src-view .src-line { display: block; min-height: 1.4em; white-space: pre-wrap; }
+.src-view .src-line.src-math-line { min-height: 2.2em; text-align: center; }
 .section-title { font-size: 16px; margin: 28px 0 12px; }
 .section-gap { margin-top: 12px; }
 .folder-grid {
@@ -450,8 +452,8 @@ body {
 }
 .print-page:last-child { break-after: auto; page-break-after: auto; }
 .print-page-num {
-  position: absolute; right: 2px; bottom: 8px;
-  font-size: 11px; color: #888;
+  position: absolute; right: 6px; bottom: 10px;
+  font-size: 16px; font-weight: 700; color: #444;
 }
 
 /* 封面 */

@@ -232,7 +232,7 @@ function paginateAndPrint(wrap, folderName, docs) {
   // 代码块按行跨页拆分：填满当前页剩余空间，超高自动续页，不整块跳页也不截断
   const SEG_PAD = 30 // 代码段上下 padding 近似
   const addCodeLines = (pre, isBody) => {
-    const lines = Array.from(pre.querySelectorAll('.code-line'))
+    const lines = Array.from(pre.querySelectorAll('.code-line, .src-line'))
     if (!lines.length) {
       // 无行结构的 pre（如 LaTeX/Typst 源码视图）按整块处理
       addBlock(pre, isBody)

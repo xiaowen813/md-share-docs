@@ -310,18 +310,27 @@ function escapeHtml(s) {
 }
 
 export function renderLatexTypst(src) {
-  const parts = String(src || '').split(/(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$)/g)
-  const html = parts
-    .map((part) => {
-      if (part.startsWith('$$') && part.endsWith('$$') && part.length > 4) {
-        return `<span class="src-math">${katex.renderToString(part.slice(2, -2), { displayMode: true, throwOnError: false })}</span>`
-      }
-      if (part.startsWith('$') && part.endsWith('$') && part.length > 2) {
-        return `<span class="src-math">${katex.renderToString(part.slice(1, -1), { displayMode: false, throwOnError: false })}</span>`
-      }
-      return escapeHtml(part)
-    })
-    .join('')
+  // 先整体提取块级公式 $$...$$（可能跨行），再按源码行拆分，保证行结构完整可跨页
+  const segs = String(src || '').split(/(\$\$[\s\S]+?\$\$)/g)
+  let html = ''
+  for (const seg of segs) {
+    if (seg.startsWith('$$') && seg.endsWith('$$') && seg.length > 4) {
+      html += `<div class="src-line src-math-line">${katex.renderToString(seg.slice(2, -2), { displayMode: true, throwOnError: false })}</div>`
+      continue
+    }
+    for (const line of seg.split('\n')) {
+      const inner = line
+        .split(/(\$[^$\n]+?\$)/g)
+        .map((p) => {
+          if (p.startsWith('$') && p.endsWith('$') && p.length > 2) {
+            return `<span class="src-math">${katex.renderToString(p.slice(1, -1), { displayMode: false, throwOnError: false })}</span>`
+          }
+          return escapeHtml(p)
+        })
+        .join('')
+      html += `<div class="src-line">${inner}</div>`
+    }
+  }
   return `<pre class="src-view">${html}</pre>`
 }
 
