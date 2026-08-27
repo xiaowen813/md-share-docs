@@ -210,14 +210,23 @@ function paginateAndPrint(wrap, folderName, docs) {
   const closePage = () => { page = null }
 
   const addBlock = (el, isBody) => {
-    const h = el.offsetHeight
-    if (page && used + h > PAGE_H) closePage()
     if (!page) {
       newPage()
       if (isBody) pageNo++
     }
+    // 先挂载再测量：未挂载的元素 offsetHeight 为 0，会导致所有内容挤在一页
     page.appendChild(el)
-    used += h
+    const h = el.offsetHeight
+    if (used + h > PAGE_H && used > 0) {
+      // 超页：移到新页（重复 append 会自动从原页移动）
+      closePage()
+      newPage()
+      if (isBody) pageNo++
+      page.appendChild(el)
+      used = el.offsetHeight
+    } else {
+      used += h
+    }
   }
 
   // 封面页
