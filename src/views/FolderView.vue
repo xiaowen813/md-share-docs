@@ -183,13 +183,14 @@ function paginateAndPrint(wrap, folderName, docs) {
       .join('') +
     '</ul>'
 
-  // 正文块：每篇文档的标题 + 正文子块
+  // 正文块：每篇文档的标题 + 正文子块。
+  // 子块移动后仍用 .markdown-body 包裹，保证 .markdown-body pre / .code-line 等后代选择器样式不失效
   const blocks = []
   articles.forEach((article, di) => {
     const titleEl = article.querySelector('.print-doc-title')
     const body = article.querySelector('.markdown-body')
-    if (titleEl) blocks.push({ el: titleEl, docIndex: di })
-    if (body) Array.from(body.children).forEach((el) => blocks.push({ el, docIndex: di }))
+    if (titleEl) blocks.push({ el: titleEl, docIndex: di, wrap: false })
+    if (body) Array.from(body.children).forEach((el) => blocks.push({ el, docIndex: di, wrap: true }))
   })
 
   // 分页器
@@ -231,7 +232,14 @@ function paginateAndPrint(wrap, folderName, docs) {
   const docStartPage = new Map()
   for (const b of blocks) {
     const isTitle = b.el.classList.contains('print-doc-title')
-    addBlock(b.el, true)
+    let node = b.el
+    if (b.wrap) {
+      const w = document.createElement('div')
+      w.className = 'markdown-body'
+      w.appendChild(b.el)
+      node = w
+    }
+    addBlock(node, true)
     if (isTitle) docStartPage.set(b.docIndex, pageNo)
   }
   closePage()
