@@ -464,6 +464,7 @@ body {
 .print-only .markdown-body {
   border: none; padding: 0; max-width: 100%; box-shadow: none;
   font-size: 18px; line-height: 1.9;
+  overflow: hidden; /* 阻止子元素 margin 折叠溢出，保证 offsetHeight 精确 */
 }
 .print-only .markdown-body pre { font-size: 17px; line-height: 1.5; }
 .print-only .markdown-body pre code { font-size: 17px; }
@@ -534,6 +535,7 @@ body {
   .markdown-body {
     border: none; padding: 0; max-width: 100%; box-shadow: none;
     font-size: 18px; line-height: 1.9;
+    overflow: hidden; /* 打印时同样阻止 margin 折叠 */
   }
   /* 打印时代码块：长行在内容区内自动换行，不与行号重叠 */
   .markdown-body pre { font-size: 17px; line-height: 1.5; }

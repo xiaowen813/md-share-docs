@@ -300,8 +300,7 @@ function paginateAndPrint(wrap, folderName, docs) {
   wrap.lastChild.appendChild(toc)
   closePage()
 
-  // 正文分页，记录每篇文档标题所在页
-  const docStartPage = new Map()
+  // 正文分页（标题页码在自愈后统一计算）
   for (const b of blocks) {
     const isTitle = b.el.classList.contains('print-doc-title')
     if (b.el.tagName === 'PRE') {
@@ -317,12 +316,78 @@ function paginateAndPrint(wrap, folderName, docs) {
       }
       addBlock(node, true)
     }
-    if (isTitle) docStartPage.set(b.docIndex, pageNo)
   }
   closePage()
 
   // 移除被掏空的 article 空壳
   articles.forEach((a) => a.remove())
+
+  // ---------- 自愈：分页后检查每页实际高度，溢出的块/代码行移到下一页 ----------
+  // 无论测量有多少误差，都能保证页尾不丢行、页码不与内容重叠
+  const makeSegIn = (p) => {
+    const w = document.createElement('div')
+    w.className = 'markdown-body'
+    const segPre = document.createElement('pre')
+    segPre.className = 'code-seg'
+    w.appendChild(segPre)
+    p.insertBefore(w, p.querySelector('.print-page-num') || null)
+    return w
+  }
+  const healPages = () => {
+    // 多轮处理：单轮中前一页会把块推给下一页导致链式污染，
+    // 循环到没有溢出为止（最多 15 轮）
+    let rounds = 0
+    let anyMoved = true
+    while (anyMoved && rounds++ < 15) {
+      anyMoved = false
+      for (let i = 0; i < pages.length - 1; i++) {
+        const p = pages[i]
+        let guard = 0
+        while (p.scrollHeight > PAGE_H + 1 && guard++ < 200) {
+        const next = pages[i + 1]
+        const blocks = [...p.children].filter((c) => !c.classList.contains('print-page-num'))
+        let movedAny = false
+        for (let j = blocks.length - 1; j >= 0; j--) {
+          const b = blocks[j]
+          if (b.offsetTop + b.offsetHeight <= PAGE_H) continue
+          const pre = b.querySelector('pre.code-seg')
+          if (pre) {
+            // 代码段：把超出页底的那行及之后的行移到下一页新段
+            const lines = [...pre.querySelectorAll('.code-line, .src-line')]
+            let movedLine = false
+            for (let k = 0; k < lines.length; k++) {
+              if (lines[k].offsetTop + lines[k].offsetHeight > PAGE_H) {
+                const nextSeg = makeSegIn(next)
+                for (let m = k; m < lines.length; m++) nextSeg.querySelector('pre').appendChild(lines[m])
+                if (pre.querySelectorAll('.code-line, .src-line').length === 0) b.remove()
+                movedLine = true
+                break
+              }
+            }
+            if (movedLine) { movedAny = true; break }
+          } else {
+            // 普通块整体移到下一页顶部
+            next.insertBefore(b, next.querySelector('.print-page-num') || null)
+            movedAny = true
+            break
+          }
+        }
+        if (!movedAny) {
+          // 兜底：检测不到具体溢出块（如最后一块的底部 margin 计入 scrollHeight）时，
+          // 强制把最后一个内容块移到下一页
+          const last = blocks[blocks.length - 1]
+          if (last) {
+            next.insertBefore(last, next.querySelector('.print-page-num') || null)
+            movedAny = true
+          }
+        }
+          if (!movedAny) break
+          anyMoved = true
+        }
+      }
+    }
+  }
+  healPages()
 
   // 正文页右下角加页码（封面/目录页不加）
   pages.forEach((p, i) => {
@@ -331,6 +396,14 @@ function paginateAndPrint(wrap, folderName, docs) {
     num.className = 'print-page-num'
     num.textContent = String(i - 1)
     p.appendChild(num)
+  })
+
+  // 自愈后重新计算每篇文档标题所在页
+  const docStartPage = new Map()
+  wrap.querySelectorAll('.print-doc-title').forEach((h, di) => {
+    const pgEl = h.closest('.print-page')
+    const idx = pages.indexOf(pgEl)
+    if (idx >= 2) docStartPage.set(di, idx - 1)
   })
 
   // 回填目录页码
