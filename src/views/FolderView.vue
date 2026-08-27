@@ -258,6 +258,18 @@ function paginateAndPrint(wrap, folderName, docs) {
     }
     let i = 0
     while (i < lines.length) {
+      // 采样行高（行仍在原 pre 中，宽度一致可测量）
+      const rowH = lines[i].offsetHeight || 20
+      const avail = PAGE_H - used - SEG_PAD
+      const est = Math.floor(avail / Math.max(rowH, 10))
+      // 旧页剩余空间放不下至少 3 行代码时，整段移到新页开头，
+      // 避免前一页只留孤立的 1~2 行、留白过多
+      if (est < 3 && used > 0) {
+        closePage()
+        if (isBody) pageNo++
+        newPage()
+        used = 0
+      }
       if (!page) {
         newPage()
         if (isBody) pageNo++
@@ -269,13 +281,11 @@ function paginateAndPrint(wrap, folderName, docs) {
       w.appendChild(segPre)
       page.appendChild(w)
       used += SEG_PAD
-      // 采样行高，估算本段可放行数（多放几行再修剪）
-      segPre.appendChild(lines[i])
-      const rowH = lines[i].offsetHeight || 20
-      const avail = Math.max(0, PAGE_H - used)
-      const est = Math.max(1, Math.floor(avail / Math.max(rowH, 10)))
-      let end = Math.min(lines.length, i + est + 2)
-      for (let k = i + 1; k < end; k++) segPre.appendChild(lines[k])
+      // 估算本段可放行数（多放几行再修剪）
+      const avail2 = Math.max(0, PAGE_H - used)
+      const est2 = Math.max(1, Math.floor(avail2 / Math.max(rowH, 10)))
+      let end = Math.min(lines.length, i + est2 + 2)
+      for (let k = i; k < end; k++) segPre.appendChild(lines[k])
       // 修剪：段超高则从末尾逐行移除（每段通常只需 0~2 次）
       let guard = 0
       while (end > i + 1 && used + w.offsetHeight - SEG_PAD > PAGE_H && guard++ < 50) {
