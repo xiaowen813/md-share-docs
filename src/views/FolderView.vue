@@ -171,10 +171,9 @@ async function downloadAllPdf() {
 }
 
 // A4 打印可用尺寸（@page: A4 + margin 14mm/16mm/16mm，总内容高约 1010px）
-// PAGE_H 非常保守：底部预留约 120px（页码区 + 渲染误差缓冲），
-// 保证页码绝不与内容重叠、页尾行绝不因渲染差异被裁
+// PAGE_H = 985：底部留 25px 页码区（页码固定显示在此空白区，不与内容重叠）
 const PAGE_W = 674
-const PAGE_H = 890
+const PAGE_H = 985
 
 // 把打印容器里的内容重排为：封面页 + 目录页 + 按块分页的正文页，并加页码
 function paginateAndPrint(wrap, folderName, docs) {
@@ -222,6 +221,11 @@ function paginateAndPrint(wrap, folderName, docs) {
   }
   const closePage = () => { page = null }
 
+  const blockHeight = (el) => {
+    const cs = getComputedStyle(el)
+    const margin = (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0)
+    return el.offsetHeight + margin
+  }
   const addBlock = (el, isBody) => {
     if (!page) {
       newPage()
@@ -229,21 +233,21 @@ function paginateAndPrint(wrap, folderName, docs) {
     }
     // 先挂载再测量：未挂载的元素 offsetHeight 为 0，会导致所有内容挤在一页
     page.appendChild(el)
-    const h = el.offsetHeight
+    const h = blockHeight(el)
     if (used + h > PAGE_H && used > 0) {
       // 超页：移到新页（重复 append 会自动从原页移动）
       closePage()
       newPage()
       if (isBody) pageNo++
       page.appendChild(el)
-      used = el.offsetHeight
+      used = blockHeight(el)
     } else {
       used += h
     }
   }
 
   // 代码块按行跨页拆分：填满当前页剩余空间，超高自动续页，不整块跳页也不截断
-  const SEG_PAD = 24 // 代码段上下 padding（12px × 2）
+  const SEG_PAD = 26 // 代码段上下 padding(12px×2) + 边框(1px×2)
   const addCodeLines = (pre, isBody) => {
     const lines = Array.from(pre.querySelectorAll('.code-line, .src-line'))
     if (!lines.length) {
