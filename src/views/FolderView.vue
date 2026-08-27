@@ -171,9 +171,9 @@ async function downloadAllPdf() {
 }
 
 // A4 打印可用尺寸（@page: A4 + margin 14mm/16mm/16mm，总内容高约 1010px）
-// PAGE_H = 940：底部预留页码区 + 测量误差缓冲，保证不丢行、页码不重叠
+// PAGE_H = 970：底部预留页码区（40px）+ 少量误差缓冲，减少留白
 const PAGE_W = 674
-const PAGE_H = 940
+const PAGE_H = 970
 
 // 把打印容器里的内容重排为：封面页 + 目录页 + 按块分页的正文页，并加页码
 function paginateAndPrint(wrap, folderName, docs) {
