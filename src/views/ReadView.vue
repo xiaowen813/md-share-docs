@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
-import { renderMarkdown } from '../lib/markdown'
+import { renderDocument } from '../lib/markdown'
 import { renderMermaidElements } from '../lib/mermaid'
 
 const props = defineProps({ id: { type: String, required: true } })
@@ -19,7 +19,7 @@ const loading = ref(true)
 const error = ref('')
 const contentEl = ref(null)
 
-const html = computed(() => (doc.value ? renderMarkdown(doc.value.content_md) : ''))
+const html = computed(() => (doc.value ? renderDocument(doc.value.content_md, doc.value.doc_type) : ''))
 
 async function load() {
   const { data, error: err } = await supabase

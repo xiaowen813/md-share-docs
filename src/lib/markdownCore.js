@@ -299,3 +299,36 @@ export function renderMarkdown(src) {
   const clean = getSanitizer().sanitize(raw)
   return insertToc(clean)
 }
+
+// ---------- LaTeX / Typst 源码视图 ----------
+// 显示源码（等宽、可滚动），其中的 $...$ / $$...$$ 公式用 KaTeX 渲染
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+export function renderLatexTypst(src) {
+  const parts = String(src || '').split(/(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$)/g)
+  const html = parts
+    .map((part) => {
+      if (part.startsWith('$$') && part.endsWith('$$') && part.length > 4) {
+        return `<span class="src-math">${katex.renderToString(part.slice(2, -2), { displayMode: true, throwOnError: false })}</span>`
+      }
+      if (part.startsWith('$') && part.endsWith('$') && part.length > 2) {
+        return `<span class="src-math">${katex.renderToString(part.slice(1, -1), { displayMode: false, throwOnError: false })}</span>`
+      }
+      return escapeHtml(part)
+    })
+    .join('')
+  return `<pre class="src-view">${html}</pre>`
+}
+
+// 按文档类型渲染：md 完整渲染；latex/typst 源码视图（公式用 KaTeX）
+export function renderDocument(src, type = 'md') {
+  if (type === 'latex' || type === 'typst') {
+    return getSanitizer().sanitize(renderLatexTypst(src))
+  }
+  return renderMarkdown(src)
+}

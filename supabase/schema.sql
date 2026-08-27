@@ -32,6 +32,8 @@ create policy "folders_public_read" on public.folders
 
 -- ------------------------------------------------------------
 -- 文档表（folder_id 为空 = 根目录）
+-- doc_type: md | latex | typst（文件类型）
+-- sort_order: 文件夹内手动排序
 -- ------------------------------------------------------------
 create table if not exists public.documents (
   id            uuid primary key default gen_random_uuid(),
@@ -40,13 +42,18 @@ create table if not exists public.documents (
   content_md    text not null default '',
   password_hash text not null,
   folder_id     uuid references public.folders(id) on delete set null,
+  doc_type      text not null default 'md' check (doc_type in ('md', 'latex', 'typst')),
+  sort_order    integer not null default 0,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
 
--- 老表升级时补充 folder_id 列（幂等）
+-- 老表升级时补充新列（幂等）
 alter table public.documents add column if not exists folder_id uuid references public.folders(id) on delete set null;
+alter table public.documents add column if not exists doc_type text not null default 'md';
+alter table public.documents add column if not exists sort_order integer not null default 0;
 create index if not exists documents_folder_idx on public.documents (folder_id);
+create index if not exists documents_folder_sort_idx on public.documents (folder_id, sort_order);
 
 alter table public.documents enable row level security;
 
@@ -103,15 +110,17 @@ $$;
 -- ------------------------------------------------------------
 -- 1) 创建文档（设置编辑密码，可选放进文件夹）
 -- ------------------------------------------------------------
--- 清理旧的 4 参数版本，避免函数重载混淆
+-- 清理旧的 4/5 参数版本，避免函数重载混淆
 drop function if exists public.create_document(text, text, text, text);
+drop function if exists public.create_document(text, text, text, text, uuid);
 
 create or replace function public.create_document(
   p_slug text,
   p_title text,
   p_password text,
   p_content_md text default '',
-  p_folder_id uuid default null
+  p_folder_id uuid default null,
+  p_doc_type text default 'md'
 )
 returns public.documents
 language plpgsql
@@ -133,14 +142,18 @@ begin
   if p_folder_id is not null and not exists (select 1 from public.folders where id = p_folder_id) then
     raise exception '文件夹不存在';
   end if;
+  if p_doc_type is null or p_doc_type not in ('md', 'latex', 'typst') then
+    raise exception '文件类型无效';
+  end if;
 
-  insert into public.documents (slug, title, content_md, password_hash, folder_id)
+  insert into public.documents (slug, title, content_md, password_hash, folder_id, doc_type)
   values (
     lower(btrim(p_slug)),
     btrim(p_title),
     coalesce(p_content_md, ''),
     extensions.crypt(p_password, extensions.gen_salt('bf')),
-    p_folder_id
+    p_folder_id,
+    p_doc_type
   )
   returning * into v_doc;
 
@@ -310,9 +323,31 @@ begin
 end;
 $$;
 
+-- ------------------------------------------------------------
+-- 7) 手动排序（按传入的 id 数组顺序设置 sort_order）
+-- ------------------------------------------------------------
+create or replace function public.reorder_documents(p_ids uuid[])
+returns boolean
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  i int := 0;
+  v_id uuid;
+begin
+  foreach v_id in array p_ids loop
+    update public.documents set sort_order = i where id = v_id;
+    i := i + 1;
+  end loop;
+  return true;
+end;
+$$;
+
 -- 显式授权给匿名/登录角色（匿名角色只能读和调用函数，不能写表）
 grant execute on function public.create_folder(text) to anon, authenticated;
-grant execute on function public.create_document(text, text, text, text, uuid) to anon, authenticated;
+grant execute on function public.create_document(text, text, text, text, uuid, text) to anon, authenticated;
+grant execute on function public.reorder_documents(uuid[]) to anon, authenticated;
 grant execute on function public.verify_document_password(uuid, text) to anon, authenticated;
 grant execute on function public.update_document(uuid, text, text, text) to anon, authenticated;
 grant execute on function public.change_document_password(uuid, text, text) to anon, authenticated;

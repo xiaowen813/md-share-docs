@@ -378,6 +378,40 @@ body {
 /* ---------- 文件夹 ---------- */
 .head-actions { display: flex; gap: 10px; align-items: center; }
 .hidden-file { display: none; }
+
+/* ---------- 文件类型选择 ---------- */
+.type-select { display: flex; gap: 10px; flex-wrap: wrap; }
+.type-option {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--border); border-radius: 9px;
+  padding: 8px 14px; cursor: pointer; font-size: 14px;
+  background: var(--surface); transition: border-color .15s ease;
+}
+.type-option:hover { border-color: var(--primary); }
+.type-option:has(input:checked) {
+  border-color: var(--primary); background: var(--primary-soft); color: var(--primary-dark);
+}
+
+/* ---------- 类型徽标 ---------- */
+.type-tag.type-md { background: #e0f2fe; color: #0369a1; }
+.type-tag.type-latex { background: #fef3c7; color: #92400e; }
+.type-tag.type-typst { background: #dcfce7; color: #166534; }
+.theme-dark .type-tag.type-md { background: #0c4a6e; color: #e0f2fe; }
+.theme-dark .type-tag.type-latex { background: #78350f; color: #fef3c7; }
+.theme-dark .type-tag.type-typst { background: #14532d; color: #dcfce7; }
+
+/* ---------- 拖拽排序 ---------- */
+.doc-card.draggable { cursor: grab; }
+.doc-card.draggable:active { cursor: grabbing; }
+
+/* ---------- LaTeX/Typst 源码视图 ---------- */
+.src-view {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px 18px; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+  font-family: var(--mono); font-size: 15px; line-height: 1.6; color: var(--text);
+}
+.src-view .src-math { font-family: inherit; }
+.src-view .src-math .katex { font-size: 1.15em; }
 .section-title { font-size: 16px; margin: 28px 0 12px; }
 .section-gap { margin-top: 12px; }
 .folder-grid {

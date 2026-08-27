@@ -22,8 +22,8 @@ async function onPickFile(e) {
   e.target.value = '' // 允许重复选择同一个文件
   if (!file) return
   try {
-    const { title, content } = await readMdFile(file)
-    rememberUpload(title, content)
+    const { title, content, type } = await readMdFile(file)
+    rememberUpload(title, content, type)
     router.push('/new')
   } catch (err) {
     error.value = err.message || '上传失败'
@@ -78,7 +78,7 @@ onMounted(load)
         <button class="btn" @click="showNewFolder = true">＋ 新建文件夹</button>
         <button class="btn" @click="fileInput?.click()">⬆ 上传 .md</button>
         <router-link to="/new" class="btn btn-primary">＋ 新建文档</router-link>
-        <input ref="fileInput" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" class="hidden-file" @change="onPickFile" />
+        <input ref="fileInput" type="file" accept=".md,.markdown,.txt,.tex,.typ" class="hidden-file" @change="onPickFile" />
       </div>
     </div>
 

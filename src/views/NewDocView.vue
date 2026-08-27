@@ -15,6 +15,7 @@ const slug = ref('')
 const password = ref('')
 const confirm = ref('')
 const content = ref('')
+const docType = ref('md') // md | latex | typst
 const slugTouched = ref(false)
 const submitting = ref(false)
 const error = ref('')
@@ -27,13 +28,14 @@ function slugify(s) {
     .replace(/^-+|-+$/g, '')
 }
 
-// 从首页/文件夹页上传 .md 后自动预填标题和内容
+// 从首页/文件夹页上传文件后自动预填标题、内容和类型
 onMounted(() => {
   const up = takeUpload()
   if (up && up.title) {
     title.value = up.title
     slug.value = slugify(up.title)
     content.value = up.content
+    docType.value = up.type || 'md'
   }
 })
 
@@ -61,6 +63,7 @@ async function submit() {
     p_password: password.value,
     p_content_md: content.value,
     p_folder_id: folderId,
+    p_doc_type: docType.value,
   })
   submitting.value = false
   if (err) {
@@ -84,6 +87,21 @@ async function submit() {
       <div class="field">
         <label for="title">标题</label>
         <input id="title" v-model="title" placeholder="文档标题" @input="onTitleInput" />
+      </div>
+      <div class="field">
+        <label>文件类型</label>
+        <div class="type-select">
+          <label class="type-option">
+            <input type="radio" value="md" v-model="docType" /> Markdown
+          </label>
+          <label class="type-option">
+            <input type="radio" value="latex" v-model="docType" /> LaTeX (.tex)
+          </label>
+          <label class="type-option">
+            <input type="radio" value="typst" v-model="docType" /> Typst (.typ)
+          </label>
+        </div>
+        <p class="hint">Markdown 完整渲染；LaTeX / Typst 以源码视图展示，其中 $...$ 公式会用 KaTeX 渲染。</p>
       </div>
       <div class="field">
         <label for="slug">Slug（URL 标识）</label>

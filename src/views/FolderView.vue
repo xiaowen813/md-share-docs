@@ -3,7 +3,7 @@ import { nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import JSZip from 'jszip'
 import { supabase } from '../lib/supabase'
-import { renderMarkdown } from '../lib/markdown'
+import { renderDocument } from '../lib/markdown'
 import { renderMermaidElements } from '../lib/mermaid'
 import { readMdFile, rememberUpload } from '../lib/uploadSession'
 
@@ -34,8 +34,8 @@ async function onPickFile(e) {
   e.target.value = ''
   if (!file) return
   try {
-    const { title, content } = await readMdFile(file)
-    rememberUpload(title, content)
+    const { title, content, type } = await readMdFile(file)
+    rememberUpload(title, content, type)
     router.push(`/new?folder=${folder.value.id}&name=${encodeURIComponent(folder.value.name)}`)
   } catch (err) {
     error.value = err.message || '上传失败'
@@ -50,8 +50,9 @@ async function load() {
     supabase.from('folders').select('*').eq('id', id).maybeSingle(),
     supabase
       .from('documents')
-      .select('id, slug, title, updated_at')
+      .select('id, slug, title, updated_at, doc_type')
       .eq('folder_id', id)
+      .order('sort_order', { ascending: true })
       .order('updated_at', { ascending: false }),
   ])
   if (fRes.error) error.value = fRes.error.message
@@ -66,10 +67,42 @@ onMounted(load)
 async function fetchAllDocs() {
   const { data, error: err } = await supabase
     .from('documents')
-    .select('slug, title, content_md, updated_at')
+    .select('slug, title, content_md, updated_at, doc_type')
     .eq('folder_id', folder.value.id)
+    .order('sort_order', { ascending: true })
   if (err) throw new Error(err.message)
   return data ?? []
+}
+
+// ---------- 手动拖拽排序 ----------
+const dragIndex = ref(null)
+
+function onDragStart(i) {
+  dragIndex.value = i
+}
+
+function onDrop(i) {
+  if (dragIndex.value === null || dragIndex.value === i) {
+    dragIndex.value = null
+    return
+  }
+  const arr = [...docs.value]
+  const [moved] = arr.splice(dragIndex.value, 1)
+  arr.splice(i, 0, moved)
+  docs.value = arr
+  dragIndex.value = null
+  saveOrder()
+}
+
+async function saveOrder() {
+  const ids = docs.value.map((d) => d.id)
+  const { error: err } = await supabase.rpc('reorder_documents', { p_ids: ids })
+  if (err) error.value = '排序保存失败：' + err.message
+}
+
+// 文档类型标签
+function typeLabel(t) {
+  return { md: 'MD', latex: 'TEX', typst: 'TYP' }[t] || 'MD'
 }
 
 function safeName(name) {
@@ -140,19 +173,29 @@ async function downloadAllPdf() {
           {{ downloading === 'pdf' ? '准备中…' : '下载全部 PDF' }}
         </button>
         <button class="btn" @click="fileInput?.click()">⬆ 上传 .md</button>
-        <input ref="fileInput" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" class="hidden-file" @change="onPickFile" />
+        <input ref="fileInput" type="file" accept=".md,.markdown,.txt,.tex,.typ" class="hidden-file" @change="onPickFile" />
         <router-link :to="`/new?folder=${folder.id}&name=${encodeURIComponent(folder.name)}`" class="btn btn-primary">
           ＋ 新建文档
         </router-link>
       </div>
       <p v-if="error" class="error no-print">{{ error }}</p>
 
-      <!-- 文件夹内文档 -->
+      <!-- 文件夹内文档（按住卡片拖动可手动排序） -->
+      <p class="muted no-print" style="margin:0 0 10px;font-size:13px">↕ 按住卡片拖动可调整顺序，打印/PDF 按此顺序输出</p>
       <ul v-if="docs.length" class="doc-list no-print">
-        <li v-for="doc in docs" :key="doc.id" class="doc-card">
+        <li
+          v-for="(doc, i) in docs"
+          :key="doc.id"
+          class="doc-card draggable"
+          draggable="true"
+          @dragstart="onDragStart(i)"
+          @dragover.prevent
+          @drop="onDrop(i)"
+        >
           <div>
             <h3>{{ doc.title }}</h3>
             <div class="doc-meta">
+              <span class="tag type-tag" :class="'type-' + doc.doc_type">{{ typeLabel(doc.doc_type) }}</span>
               <span class="tag">{{ doc.slug }}</span>
               <span>更新于 {{ fmtDate(doc.updated_at) }}</span>
             </div>
@@ -176,7 +219,7 @@ async function downloadAllPdf() {
           class="print-doc"
         >
           <h1 class="print-doc-title">{{ doc.title }}</h1>
-          <div class="markdown-body" v-html="renderMarkdown(doc.content_md)"></div>
+          <div class="markdown-body" v-html="renderDocument(doc.content_md, doc.doc_type)"></div>
         </article>
       </div>
     </template>
