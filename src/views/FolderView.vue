@@ -150,6 +150,8 @@ async function downloadAllPdf() {
     await nextTick()
     await renderMermaidElements(printWrapRef.value)
     await nextTick()
+    // 等待字体加载完成，保证测量高度与打印一致
+    if (document.fonts && document.fonts.ready) await document.fonts.ready
     paginateAndPrint(printWrapRef.value, folder.value.name, list)
   } catch (e) {
     error.value = e.message || '下载失败'
@@ -160,8 +162,9 @@ async function downloadAllPdf() {
 }
 
 // A4 打印可用尺寸（@page: A4 + margin 14mm/16mm/16mm）
+// PAGE_H 留 4px 安全余量，避免字体/渲染差异导致页尾溢出
 const PAGE_W = 674
-const PAGE_H = 1010
+const PAGE_H = 1006
 
 // 把打印容器里的内容重排为：封面页 + 目录页 + 按块分页的正文页，并加页码
 function paginateAndPrint(wrap, folderName, docs) {

@@ -434,6 +434,23 @@ body {
 /* ---------- 打印容器（文件夹全部 PDF） ---------- */
 /* 屏幕显示时移到屏幕外（保持可测量），打印时回到原位 */
 .print-only { position: absolute; left: -10000px; top: 0; width: 674px; }
+
+/* 测量容器与打印输出样式完全一致：
+   否则屏幕测量（不折行/有 padding）会比打印实际高度矮，导致页尾内容被裁 */
+.print-only .markdown-body {
+  border: none; padding: 0; max-width: 100%; box-shadow: none;
+  font-size: 18px; line-height: 1.9;
+}
+.print-only .markdown-body pre { font-size: 17px; line-height: 1.5; }
+.print-only .markdown-body pre code { font-size: 17px; }
+.print-only .markdown-body .code-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  min-height: 1em;
+}
+.print-only .markdown-body .code-ln { color: #9aa0aa; }
+.print-only .markdown-body pre, .print-only .markdown-body pre code.hljs { background: #f5f6f8; }
 .print-doc-title { font-size: 30px; margin: 0 0 16px; }
 /* 跨页拆分的代码段（继承 .markdown-body pre 的字体/背景/边框） */
 .print-page .code-seg {
