@@ -76,7 +76,7 @@ onMounted(load)
       <h1>文档列表</h1>
       <div class="head-actions">
         <button class="btn" @click="showNewFolder = true">＋ 新建文件夹</button>
-        <button class="btn" @click="fileInput?.click()">⬆ 上传 .md</button>
+        <button class="btn" @click="fileInput?.click()">⬆ 上传文件</button>
         <router-link to="/new" class="btn btn-primary">＋ 新建文档</router-link>
         <input ref="fileInput" type="file" accept=".md,.markdown,.txt,.tex,.typ" class="hidden-file" @change="onPickFile" />
       </div>

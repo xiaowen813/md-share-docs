@@ -166,7 +166,8 @@ const PAGE_H = 1010
 // 把打印容器里的内容重排为：封面页 + 目录页 + 按块分页的正文页，并加页码
 function paginateAndPrint(wrap, folderName, docs) {
   const articles = Array.from(wrap.querySelectorAll('.print-doc'))
-  wrap.innerHTML = ''
+  // 注意：不能提前清空 wrap！分页时通过 appendChild 移动元素，
+  // 这样块元素始终在 DOM 中，offsetHeight 才能测量出真实高度
 
   // 封面
   const cover = document.createElement('div')
@@ -244,6 +245,9 @@ function paginateAndPrint(wrap, folderName, docs) {
   }
   closePage()
 
+  // 移除被掏空的 article 空壳
+  articles.forEach((a) => a.remove())
+
   // 正文页右下角加页码（封面/目录页不加）
   pages.forEach((p, i) => {
     if (i < 2) return
@@ -281,7 +285,7 @@ function paginateAndPrint(wrap, folderName, docs) {
         <button class="btn" :disabled="downloading !== ''" @click="downloadAllPdf">
           {{ downloading === 'pdf' ? '准备中…' : '下载全部 PDF' }}
         </button>
-        <button class="btn" @click="fileInput?.click()">⬆ 上传 .md</button>
+        <button class="btn" @click="fileInput?.click()">⬆ 上传文件</button>
         <input ref="fileInput" type="file" accept=".md,.markdown,.txt,.tex,.typ" class="hidden-file" @change="onPickFile" />
         <router-link :to="`/new?folder=${folder.id}&name=${encodeURIComponent(folder.name)}`" class="btn btn-primary">
           ＋ 新建文档
