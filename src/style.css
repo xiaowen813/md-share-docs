@@ -437,7 +437,6 @@ body {
 .print-doc-title { font-size: 30px; margin: 0 0 16px; }
 /* 跨页拆分的代码段（继承 .markdown-body pre 的字体/背景/边框） */
 .print-page .code-seg {
-  margin: 0 0 10px;
   background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -448,7 +447,6 @@ body {
 .print-page {
   height: 1010px; box-sizing: border-box; overflow: hidden;
   position: relative; break-after: page; page-break-after: always;
-  padding-bottom: 36px;
 }
 .print-page:last-child { break-after: auto; page-break-after: auto; }
 .print-page-num {
