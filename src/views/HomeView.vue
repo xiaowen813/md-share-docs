@@ -3,6 +3,8 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { readMdFile, rememberUpload } from '../lib/uploadSession'
+import { useFileDrop } from '../lib/useFileDrop'
+import DropOverlay from '../components/DropOverlay.vue'
 
 const folders = ref([])
 const docs = ref([])
@@ -16,6 +18,28 @@ const creatingFolder = ref(false)
 
 const router = useRouter()
 const fileInput = ref(null)
+
+// 拖拽上传（拖入文件 → 跳转新建页预填）
+const { dragging } = useFileDrop({ onBeforePush: () => router.push('/new') })
+
+// 拖拽移动：把文档拖到文件夹卡片上
+const dragDocId = ref(null)
+const dragOverFolder = ref(null)
+function onDocDragStart(doc) {
+  dragDocId.value = doc.id
+}
+async function onFolderDrop(folderId) {
+  const id = dragDocId.value
+  dragDocId.value = null
+  dragOverFolder.value = null
+  if (!id) return
+  const { error: err } = await supabase.rpc('move_document', {
+    p_doc_id: id,
+    p_folder_id: folderId,
+  })
+  if (err) error.value = '移动失败：' + err.message
+  else await load()
+}
 
 async function onPickFile(e) {
   const file = e.target.files?.[0]
@@ -89,7 +113,7 @@ onMounted(load)
     <p v-else-if="error" class="error">加载失败：{{ error }}</p>
 
     <template v-else>
-      <!-- 文件夹区 -->
+      <!-- 文件夹区（文档拖到文件夹卡片上可移动） -->
       <h2 class="section-title">📁 文件夹</h2>
       <div v-if="folders.length" class="folder-grid">
         <router-link
@@ -97,6 +121,10 @@ onMounted(load)
           :key="f.id"
           :to="`/folder/${f.id}`"
           class="folder-card"
+          :class="{ 'drop-target': dragOverFolder === f.id }"
+          @dragover.prevent="dragOverFolder = f.id"
+          @dragleave="dragOverFolder = null"
+          @drop.prevent="onFolderDrop(f.id)"
         >
           <div class="folder-icon">📁</div>
           <div class="folder-info">
@@ -111,7 +139,13 @@ onMounted(load)
       <h2 class="section-title">📄 文档</h2>
       <div v-if="docs.length" class="empty-gap"></div>
       <ul v-if="docs.length" class="doc-list">
-        <li v-for="doc in docs" :key="doc.id" class="doc-card">
+        <li
+          v-for="doc in docs"
+          :key="doc.id"
+          class="doc-card draggable"
+          draggable="true"
+          @dragstart="onDocDragStart(doc)"
+        >
           <div>
             <h3>{{ doc.title }}</h3>
             <div class="doc-meta">
@@ -130,7 +164,11 @@ onMounted(load)
         还没有内容，先新建文件夹或文档吧。
       </div>
       <p v-else class="muted">根目录还没有文档，点「＋ 新建文档」创建一篇。</p>
+      <p class="muted no-print" style="margin-top:16px;font-size:13px">💡 提示：拖拽 .md/.tex/.typ 文件到页面任意位置即可上传；把文档卡片拖到文件夹卡片上可移动文件。</p>
     </template>
+
+    <!-- 拖拽上传遮罩 -->
+    <DropOverlay :show="dragging" />
 
     <!-- 新建文件夹弹窗 -->
     <div v-if="showNewFolder" class="modal-overlay" @click.self="showNewFolder = false">

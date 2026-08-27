@@ -6,6 +6,8 @@ import { supabase } from '../lib/supabase'
 import { renderDocument } from '../lib/markdown'
 import { renderMermaidElements } from '../lib/mermaid'
 import { readMdFile, rememberUpload } from '../lib/uploadSession'
+import { useFileDrop } from '../lib/useFileDrop'
+import DropOverlay from '../components/DropOverlay.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +19,12 @@ function goBack() {
 }
 const fileInput = ref(null)
 const folder = ref(null)
+
+// 拖拽上传：拖入文件 → 跳转到本文件夹内的新建页
+const { dragging } = useFileDrop({
+  onBeforePush: () =>
+    router.push(`/new?folder=${folder.value?.id}&name=${encodeURIComponent(folder.value?.name || '')}`),
+})
 const docs = ref([])
 const loading = ref(true)
 const error = ref('')
@@ -375,6 +383,11 @@ function paginateAndPrint(wrap, folderName, docs) {
         <div class="big">📄</div>
         文件夹还是空的，点「＋ 新建文档」添加第一篇。
       </div>
+
+      <p class="muted no-print" style="margin-top:14px;font-size:13px">💡 提示：拖拽 .md/.tex/.typ 文件到页面任意位置即可上传到本文件夹。</p>
+
+      <!-- 拖拽上传遮罩 -->
+      <DropOverlay :show="dragging" />
 
       <!-- 打印容器：仅打印时显示，输出合并 PDF -->
       <div v-if="printDocs.length" ref="printWrapRef" class="print-only">

@@ -344,7 +344,31 @@ begin
 end;
 $$;
 
+-- ------------------------------------------------------------
+-- 8) 移动文档到文件夹（null = 移到根目录）
+-- ------------------------------------------------------------
+create or replace function public.move_document(p_doc_id uuid, p_folder_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if p_folder_id is not null and not exists (select 1 from public.folders where id = p_folder_id) then
+    raise exception '文件夹不存在';
+  end if;
+  update public.documents
+  set folder_id = p_folder_id, sort_order = 0
+  where id = p_doc_id;
+  if not found then
+    raise exception '文档不存在';
+  end if;
+  return true;
+end;
+$$;
+
 -- 显式授权给匿名/登录角色（匿名角色只能读和调用函数，不能写表）
+grant execute on function public.move_document(uuid, uuid) to anon, authenticated;
 grant execute on function public.create_folder(text) to anon, authenticated;
 grant execute on function public.create_document(text, text, text, text, uuid, text) to anon, authenticated;
 grant execute on function public.reorder_documents(uuid[]) to anon, authenticated;
