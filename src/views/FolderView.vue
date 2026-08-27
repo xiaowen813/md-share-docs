@@ -126,8 +126,9 @@ async function downloadAllMd() {
     if (list.length === 0) { alert('这个文件夹里还没有文档'); return }
     const zip = new JSZip()
     const dir = safeName(folder.value.name)
+    const extOf = (t) => ({ md: 'md', latex: 'tex', typst: 'typ' }[t] || 'md')
     for (const doc of list) {
-      const file = `${doc.slug || doc.title || 'document'}.md`
+      const file = `${doc.slug || doc.title || 'document'}.${extOf(doc.doc_type)}`
       zip.file(`${dir}/${file}`, doc.content_md || '')
     }
     const blob = await zip.generateAsync({ type: 'blob' })
@@ -170,10 +171,10 @@ async function downloadAllPdf() {
 }
 
 // A4 打印可用尺寸（@page: A4 + margin 14mm/16mm/16mm，总内容高约 1010px）
-// PAGE_H 保守值：底部预留约 65px（页码区 + 渲染误差），
-// 保证页码不与内容重叠、页尾行不被裁切
+// PAGE_H 非常保守：底部预留约 120px（页码区 + 渲染误差缓冲），
+// 保证页码绝不与内容重叠、页尾行绝不因渲染差异被裁
 const PAGE_W = 674
-const PAGE_H = 945
+const PAGE_H = 890
 
 // 把打印容器里的内容重排为：封面页 + 目录页 + 按块分页的正文页，并加页码
 function paginateAndPrint(wrap, folderName, docs) {
@@ -351,7 +352,7 @@ function paginateAndPrint(wrap, folderName, docs) {
         <span class="muted">{{ docs.length }} 篇文档</span>
         <div class="spacer"></div>
         <button class="btn" :disabled="downloading !== ''" @click="downloadAllMd">
-          {{ downloading === 'md' ? '打包中…' : '下载全部 .md' }}
+          {{ downloading === 'md' ? '打包中…' : '下载全部源文件' }}
         </button>
         <button class="btn" :disabled="downloading !== ''" @click="downloadAllPdf">
           {{ downloading === 'pdf' ? '准备中…' : '下载全部 PDF' }}
@@ -366,6 +367,7 @@ function paginateAndPrint(wrap, folderName, docs) {
 
       <!-- 文件夹内文档（按住卡片拖动可手动排序） -->
       <p class="muted no-print" style="margin:0 0 10px;font-size:13px">↕ 按住卡片拖动可调整顺序，打印/PDF 按此顺序输出</p>
+      <p class="muted no-print" style="margin:0 0 10px;font-size:13px;color:#b45309">🖨 导出 PDF 时请在打印对话框选择：纸张 A4 · 缩放 100% · 边距默认</p>
       <ul v-if="docs.length" class="doc-list no-print">
         <li
           v-for="(doc, i) in docs"

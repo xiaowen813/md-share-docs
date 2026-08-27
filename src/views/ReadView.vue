@@ -36,12 +36,16 @@ async function load() {
 }
 onMounted(load)
 
+// 按文档类型下载源文件：md → .md，latex → .tex，typst → .typ
 function downloadMd() {
   if (!doc.value) return
-  const blob = new Blob([doc.value.content_md], { type: 'text/markdown;charset=utf-8' })
+  const type = doc.value.doc_type || 'md'
+  const ext = { md: 'md', latex: 'tex', typst: 'typ' }[type] || 'md'
+  const mime = { md: 'text/markdown', latex: 'text/x-tex', typst: 'text/plain' }[type] || 'text/plain'
+  const blob = new Blob([doc.value.content_md], { type: mime + ';charset=utf-8' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = `${doc.value.slug || 'document'}.md`
+  a.download = `${doc.value.slug || 'document'}.${ext}`
   a.click()
   URL.revokeObjectURL(a.href)
 }
