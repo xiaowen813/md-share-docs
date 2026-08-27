@@ -229,6 +229,41 @@ function paginateAndPrint(wrap, folderName, docs) {
     }
   }
 
+  // 代码块按行跨页拆分：填满当前页剩余空间，超高自动续页，不整块跳页也不截断
+  const SEG_PAD = 30 // 代码段上下 padding 近似
+  const addCodeLines = (pre, isBody) => {
+    const lines = Array.from(pre.querySelectorAll('.code-line'))
+    if (!lines.length) {
+      // 无行结构的 pre（如 LaTeX/Typst 源码视图）按整块处理
+      addBlock(pre, isBody)
+      return
+    }
+    let segWrap = null
+    for (const line of lines) {
+      const lineH = line.offsetHeight || 20
+      const pad = segWrap ? 0 : SEG_PAD
+      if (!page || used + lineH + pad > PAGE_H) {
+        closePage()
+        newPage()
+        if (isBody) pageNo++
+        segWrap = null
+        used = 0
+      }
+      if (!segWrap) {
+        segWrap = document.createElement('div')
+        segWrap.className = 'markdown-body'
+        const segPre = document.createElement('pre')
+        segPre.className = 'code-seg'
+        segWrap.appendChild(segPre)
+        page.appendChild(segWrap)
+        used += SEG_PAD
+      }
+      segWrap.querySelector('pre').appendChild(line)
+      used += lineH
+    }
+    pre.remove() // 行已全部移走，移除空壳
+  }
+
   // 封面页
   newPage()
   wrap.lastChild.appendChild(cover)
@@ -242,14 +277,19 @@ function paginateAndPrint(wrap, folderName, docs) {
   const docStartPage = new Map()
   for (const b of blocks) {
     const isTitle = b.el.classList.contains('print-doc-title')
-    let node = b.el
-    if (b.wrap) {
-      const w = document.createElement('div')
-      w.className = 'markdown-body'
-      w.appendChild(b.el)
-      node = w
+    if (b.el.tagName === 'PRE') {
+      // 代码块：按行拆分跨页，不整块跳页
+      addCodeLines(b.el, true)
+    } else {
+      let node = b.el
+      if (b.wrap) {
+        const w = document.createElement('div')
+        w.className = 'markdown-body'
+        w.appendChild(b.el)
+        node = w
+      }
+      addBlock(node, true)
     }
-    addBlock(node, true)
     if (isTitle) docStartPage.set(b.docIndex, pageNo)
   }
   closePage()

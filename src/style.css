@@ -433,6 +433,14 @@ body {
 /* 屏幕显示时移到屏幕外（保持可测量），打印时回到原位 */
 .print-only { position: absolute; left: -10000px; top: 0; width: 674px; }
 .print-doc-title { font-size: 30px; margin: 0 0 16px; }
+/* 跨页拆分的代码段（继承 .markdown-body pre 的字体/背景/边框） */
+.print-page .code-seg {
+  margin: 0 0 10px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
 
 /* JS 分页：每页固定 A4 内容高度，右下角页码 */
 .print-page {
