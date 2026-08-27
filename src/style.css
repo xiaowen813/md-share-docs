@@ -476,12 +476,13 @@ body {
 .print-only .markdown-body .code-ln { color: #9aa0aa; }
 .print-only .markdown-body pre, .print-only .markdown-body pre code.hljs { background: #f5f6f8; }
 .print-doc-title { font-size: 30px; margin: 0 0 16px; }
-/* 跨页拆分的代码段（继承 .markdown-body pre 的字体/背景/边框） */
+/* 跨页拆分的代码段：padding 必须与原 .markdown-body pre 完全一致（14px 16px），
+   否则行的测量宽度(642px)与实际渲染宽度不同，长行折行数变化导致页尾丢行 */
 .print-page .code-seg {
   background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 12px 14px;
+  padding: 14px 16px;
 }
 
 /* JS 分页：每页固定 A4 内容高度，右下角页码 */

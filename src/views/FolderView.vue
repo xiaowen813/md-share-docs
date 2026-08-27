@@ -247,7 +247,7 @@ function paginateAndPrint(wrap, folderName, docs) {
   }
 
   // 代码块按行跨页拆分：填满当前页剩余空间，超高自动续页，不整块跳页也不截断
-  const SEG_PAD = 26 // 代码段上下 padding(12px×2) + 边框(1px×2)
+  const SEG_PAD = 30 // 代码段上下 padding(14px×2) + 边框(1px×2)
   const addCodeLines = (pre, isBody) => {
     const lines = Array.from(pre.querySelectorAll('.code-line, .src-line'))
     if (!lines.length) {
