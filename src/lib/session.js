@@ -14,6 +14,7 @@ export async function refreshAuth() {
   user.value = data.session?.user ?? null
   if (user.value) {
     await supabase.rpc('ensure_admin')
+    await supabase.rpc('link_login') // 绑定授权记录到当前登录用户
     const { data: r } = await supabase.rpc('current_user_role')
     role.value = r || 'anonymous'
   } else {

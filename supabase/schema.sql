@@ -16,9 +16,11 @@
 create table if not exists public.authorized_users (
   id              uuid primary key default gen_random_uuid(),
   github_username text unique not null,
+  auth_user_id    uuid,                 -- 登录后自动绑定，之后按用户 ID 判断权限
   is_admin        boolean not null default false,
   created_at      timestamptz not null default now()
 );
+alter table public.authorized_users add column if not exists auth_user_id uuid;
 
 -- ------------------------------------------------------------
 -- 文件夹表（公开可读，创建走 RPC）
@@ -93,6 +95,10 @@ set search_path = public
 as $$
   select case
     when auth.uid() is null then 'anonymous'
+    -- 优先：已绑定登录的用户 ID
+    when exists (select 1 from public.authorized_users where auth_user_id = auth.uid() and is_admin) then 'admin'
+    when exists (select 1 from public.authorized_users where auth_user_id = auth.uid()) then 'editor'
+    -- 兜底：用户名（不区分大小写）
     when exists (
       select 1 from public.authorized_users
       where github_username = lower(
@@ -191,6 +197,34 @@ begin
   delete from public.authorized_users
   where github_username = lower(btrim(p_github_username))
     and is_admin = false;
+  return true;
+end;
+$$;
+
+-- 登录绑定：把当前登录用户绑定到 authorized_users 记录（按用户名，尝试多个字段名）
+create or replace function public.link_login()
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid  uuid := auth.uid();
+  v_name text;
+begin
+  if v_uid is null then return false; end if;
+  v_name := lower(coalesce(
+    auth.jwt() -> 'user_metadata' ->> 'user_name',
+    auth.jwt() -> 'user_metadata' ->> 'preferred_username',
+    auth.jwt() -> 'user_metadata' ->> 'userName',
+    auth.jwt() ->> 'user_name',
+    ''
+  ));
+  if v_name = '' then return false; end if;
+  update public.authorized_users
+  set auth_user_id = v_uid
+  where github_username = v_name
+    and auth_user_id is null;
   return true;
 end;
 $$;
@@ -409,6 +443,7 @@ $$;
 grant execute on function public.current_user_role() to anon, authenticated;
 -- 首用户管理员：登录后调用
 grant execute on function public.ensure_admin() to authenticated;
+grant execute on function public.link_login() to authenticated;
 -- 管理员管理用户
 grant execute on function public.add_authorized_user(text) to authenticated;
 grant execute on function public.remove_authorized_user(text) to authenticated;
