@@ -10,9 +10,10 @@ import DocSidebar from '../components/DocSidebar.vue'
 const props = defineProps({ id: { type: String, required: true } })
 const router = useRouter()
 
-// 返回上一页（从哪进来回哪去）；没有上一页时才回首页
+// 返回文档所在目录：在文件夹内 → 文件夹页；根目录 → 首页。
+// 避免在编辑/阅读之间用浏览器历史来回跳
 function goBack() {
-  if (window.history.state && window.history.state.back) router.back()
+  if (doc.value && doc.value.folder_id) router.push(`/folder/${doc.value.folder_id}`)
   else router.push('/')
 }
 
