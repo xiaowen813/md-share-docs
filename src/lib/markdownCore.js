@@ -66,12 +66,16 @@ const inlineMath = {
   name: 'inlineMath',
   level: 'inline',
   start(src) {
-    const i = src.indexOf('$')
-    return i === -1 ? undefined : i
+    // 找到非转义的 $（跳过 \$，\$ 用于显示字面美元符号）
+    for (let i = 0; i < src.length; i++) {
+      if (src[i] === '$' && (i === 0 || src[i - 1] !== '\\')) return i
+    }
+    return undefined
   },
   tokenizer(src) {
-    // $ 后不能是空白或数字（避免价格 $5、普通美元 $ 被误判为公式），结束 $ 后同样不能紧跟数字
-    const match = src.match(/^\$(?!\d)([^\s$][^$\n]*?)\$(?!\d)/)
+    // $ 后不能是空白或另一个 $（$$ 是块级）；有闭合 $ 的才是公式，
+    // 所以价格 $5（无闭合）不会被误判，$2^x$（有闭合）正常渲染
+    const match = src.match(/^\$([^\s$][^$\n]*?)\$(?!\d)/)
     if (match) return { type: 'inlineMath', raw: match[0], text: match[1] }
   },
   renderer(token) {
@@ -83,8 +87,10 @@ const blockMath = {
   name: 'blockMath',
   level: 'block',
   start(src) {
-    const i = src.indexOf('$$')
-    return i === -1 ? undefined : i
+    for (let i = 0; i < src.length; i++) {
+      if (src[i] === '$' && src[i + 1] === '$' && (i === 0 || src[i - 1] !== '\\')) return i
+    }
+    return undefined
   },
   tokenizer(src) {
     const match = src.match(/^\$\$([\s\S]+?)\$\$/)
