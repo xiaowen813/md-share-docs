@@ -14,10 +14,9 @@ import DropOverlay from '../components/DropOverlay.vue'
 const route = useRoute()
 const router = useRouter()
 
-// 返回上一页（从哪进来回哪去）；没有上一页时才回首页
+// 返回首页（文件夹的上一级目录就是首页，避免在阅读/编辑之间互跳）
 function goBack() {
-  if (window.history.state && window.history.state.back) router.back()
-  else router.push('/')
+  router.push('/')
 }
 const fileInput = ref(null)
 const folder = ref(null)
