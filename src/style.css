@@ -113,7 +113,18 @@ body {
   transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
 .doc-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: #b8e6df; }
-.doc-card h3 { margin: 0 0 4px; font-size: 16px; }
+.doc-card { position: relative; cursor: pointer; }
+.doc-card h3 { margin: 0 0 4px; font-size: 16px; padding-right: 42px; }
+.doc-card .doc-card-main { flex: 1; min-width: 0; }
+.edit-gear {
+  position: absolute; top: 10px; right: 12px;
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; text-decoration: none; color: var(--muted);
+  transition: background .15s ease, color .15s ease;
+  z-index: 2;
+}
+.edit-gear:hover { background: var(--code-bg); color: var(--text); }
 .doc-meta { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
 .doc-meta .tag {
   background: var(--primary-soft); color: var(--primary-dark);

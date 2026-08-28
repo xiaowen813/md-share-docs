@@ -145,6 +145,10 @@ async function downloadAllMd() {
   }
 }
 
+function goDoc(id) {
+  router.push(`/doc/${id}`)
+}
+
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
@@ -410,18 +414,22 @@ function paginateAndPrint(wrap, folderName, docs) {
           @dragstart="onDragStart(i)"
           @dragover.prevent
           @drop="onDrop(i)"
+          @click="goDoc(doc.id)"
         >
-          <div>
+          <router-link
+            v-if="canWrite()"
+            :to="`/doc/${doc.id}/edit`"
+            class="edit-gear"
+            title="编辑"
+            @click.stop
+          >⚙️</router-link>
+          <div class="doc-card-main">
             <h3>{{ doc.title }}</h3>
             <div class="doc-meta">
               <span class="tag type-tag" :class="'type-' + doc.doc_type">{{ typeLabel(doc.doc_type) }}</span>
               <span class="tag">{{ doc.slug }}</span>
               <span>更新于 {{ fmtDate(doc.updated_at) }}</span>
             </div>
-          </div>
-          <div class="doc-actions">
-            <router-link :to="`/doc/${doc.id}`" class="btn">阅读</router-link>
-            <router-link :to="`/doc/${doc.id}/edit`" class="btn">编辑</router-link>
           </div>
         </li>
       </ul>
