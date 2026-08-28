@@ -411,6 +411,10 @@ body {
 .theme-dark .topbar { background: rgba(30, 33, 39, .92); }
 .theme-dark .btn:hover { background: #2a2e36; }
 .theme-dark .btn-ghost:hover { background: rgba(255, 255, 255, .07); color: var(--text); }
+.theme-dark .btn-icon:hover { background: #2a2e36; color: var(--text); }
+.theme-dark .btn-danger:hover { background: #3a1d1d; }
+.theme-dark .fmt-btn:hover { background: rgba(255, 255, 255, .08); color: var(--text); }
+.theme-dark .dropdown-item:hover { background: #262a31; }
 .theme-dark .btn:not(.btn-primary):not(.btn-danger) { box-shadow: none; }
 .theme-dark .title-input:hover { background: #262a31; }
 .theme-dark .title-input:focus { background: #1a1d22; border-color: var(--primary); }
