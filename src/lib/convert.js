@@ -1,90 +1,171 @@
-// 文档格式转换：Markdown ↔ LaTeX ↔ Typst（基础语法级转换，纯正则）
+// 文档格式转换：Markdown ↔ LaTeX ↔ Typst（token 级转换，正确转义特殊字符）
+import { marked } from 'marked'
+import './markdownCore.js' // 副作用：注册公式/高亮等 marked 扩展，保证转换时语法完整
+
 const T = String.fromCharCode(96)
 const F = T + T + T
 
-// ---------- Markdown → LaTeX ----------
-export function mdToLatex(md) {
-  let s = String(md || '')
-  // 代码块先处理（避免被行内规则误伤）
-  s = s.replace(new RegExp('^' + F + '(\\w*)\\n([\\s\\S]*?)' + F + '$', 'gm'), function (_m, lang, body) {
-    return '\\begin{verbatim}\n' + body.replace(/\n$/, '') + '\n\\end{verbatim}'
-  })
-  s = s
-    .replace(/^###\s+(.+)$/gm, '\\subsubsection*{$1}')
-    .replace(/^##\s+(.+)$/gm, '\\subsection*{$1}')
-    .replace(/^#\s+(.+)$/gm, '\\section*{$1}')
-    // 粗体/斜体一次交替替换，避免互相干扰
-    .replace(/\*\*(.+?)\*\*|\*(.+?)\*/g, function (m, a, b) {
-      return a ? '\\textbf{' + a + '}' : '\\textit{' + b + '}'
-    })
-    .replace(/~~([^~]+)~~/g, '\\sout{$1}')
-    .replace(/(^|[^\\])`([^`]+)`/g, '$1\\texttt{$2}')
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '\\includegraphics{$2}')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '\\href{$2}{$1}')
-  // 引用 / 分隔线
-  s = s.replace(/^>\s?(.*)$/gm, '\\begin{quote}\n$1\n\\end{quote}')
-  s = s.replace(/^---+$/gm, '\\noindent\\rule{\\textwidth}{0.4pt}')
-  // 列表
-  const lines = s.split('\n')
-  let inList = null
-  const out = []
-  for (const line of lines) {
-    const ul = line.match(/^\s*-\s+(.*)$/)
-    const ol = line.match(/^\s*\d+\.\s+(.*)$/)
-    if (ul) {
-      if (inList !== 'itemize') {
-        if (inList) out.push('\\end{' + inList + '}')
-        out.push('\\begin{itemize}')
-        inList = 'itemize'
-      }
-      out.push('  \\item ' + ul[1])
-    } else if (ol) {
-      if (inList !== 'enumerate') {
-        if (inList) out.push('\\end{' + inList + '}')
-        out.push('\\begin{enumerate}')
-        inList = 'enumerate'
-      }
-      out.push('  \\item ' + ol[1])
-    } else {
-      if (inList) { out.push('\\end{' + inList + '}'); inList = null }
-      out.push(line)
-    }
+// ---------- 转义 ----------
+// marked 的 text token 会把 & < > " 转成实体，先还原再转义目标格式
+function unescapeHtml(s) {
+  return String(s)
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+}
+function escL(s) {
+  return unescapeHtml(s)
+    .replace(/\\/g, '\\textbackslash{}')
+    .replace(/([{}&#%_~^$])/g, '\\$1')
+}
+function escUrl(s) {
+  return unescapeHtml(s).replace(/\\/g, '\\textbackslash{}').replace(/([{}%&_])/g, '\\$1')
+}
+function escT(s) {
+  return unescapeHtml(s).replace(/[\\*_$]/g, function (c) { return '\\' + c })
+}
+
+// ========== Markdown → LaTeX ==========
+function inlL(node) {
+  if (typeof node === 'string') return escL(node)
+  const kids = function () {
+    return node.tokens ? node.tokens.map(inlL).join('') : escL(node.text || '')
   }
-  if (inList) out.push('\\end{' + inList + '}')
-  s = out.join('\n')
-  // 表格（基础）
-  s = s.replace(/\n((\|[^\n]+\|\n)+)/g, function (_m, block) {
-    const rows = block.trim().split('\n').map(function (r) {
-      return r.replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim() })
-    }).filter(function (r) { return !/^[-:\s]+$/.test(r.join(' ')) })
-    const cols = rows.length ? rows[0].length : 1
-    const rowsOut = rows.map(function (r) { return r.join(' & ') + ' \\\\' }).join('\n')
-    return '\n\\begin{tabular}{' + 'l'.repeat(cols) + '}\n\\hline\n' + rowsOut + '\n\\hline\n\\end{tabular}\n'
-  })
-  return s.trim() + '\n'
+  switch (node.type) {
+    case 'text': {
+      // marked 的 text token 同时含 text 和已解析的 tokens，二者重叠；
+      // 有 tokens 时只渲染 tokens，避免内容重复
+      if (node.tokens && node.tokens.length) return node.tokens.map(inlL).join('')
+      return escL(node.text || '')
+    }
+    case 'strong': return '\\textbf{' + kids() + '}'
+    case 'em': return '\\textit{' + kids() + '}'
+    case 'del': return '\\sout{' + kids() + '}'
+    case 'codespan': return '\\texttt{' + escL(node.text || '') + '}'
+    case 'link': return '\\href{' + escUrl(node.href) + '}{' + kids() + '}'
+    case 'image': return '\\includegraphics{' + escUrl(node.href) + '}'
+    case 'inlineMath': return node.text ? '$' + node.text + '$' : ''
+    case 'highlightText': return '\\hl{' + kids() + '}'
+    case 'superscript': return '\\textsuperscript{' + kids() + '}'
+    case 'subscript': return '\\textsubscript{' + kids() + '}'
+    case 'emoji': return node.emoji || ''
+    case 'footnoteRef': return '\\footnote{' + escL(node.id) + '}'
+    case 'br': return '\\\\'
+    default: return escL(node.text || '')
+  }
 }
 
-// ---------- Markdown → Typst ----------
+function blockChildrenL(t) {
+  if (!t.tokens) return ''
+  return t.tokens.map(function (n) {
+    return n.type === 'list' || n.type === 'paragraph' || n.type === 'space' || n.type === 'blockquote' ? blkL(n) : inlL(n)
+  }).join('')
+}
+
+function blkL(t) {
+  switch (t.type) {
+    case 'heading': {
+      const lvl = t.depth <= 1 ? 'section' : t.depth === 2 ? 'subsection' : 'subsubsection'
+      return '\\' + lvl + '*{' + (t.tokens || []).map(inlL).join('') + '}\n\n'
+    }
+    case 'paragraph': return (t.tokens || []).map(inlL).join('') + '\n\n'
+    case 'code': return '\\begin{verbatim}\n' + (t.text || '') + '\n\\end{verbatim}\n\n'
+    case 'blockquote': return '\\begin{quote}\n' + (t.tokens || []).map(inlL).join('') + '\n\\end{quote}\n\n'
+    case 'list': {
+      const env = t.ordered ? 'enumerate' : 'itemize'
+      const items = t.items.map(function (it) { return '  \\item ' + blockChildrenL(it) }).join('\n')
+      return '\\begin{' + env + '}\n' + items + '\n\\end{' + env + '}\n\n'
+    }
+    case 'table': {
+      const cols = 'l'.repeat(t.header.length)
+      const rows = [t.header].concat(t.rows).map(function (r) {
+        return r.map(function (c) { return (c.tokens || []).map(inlL).join('') }).join(' & ') + ' \\\\'
+      }).join('\n')
+      return '\\begin{tabular}{' + cols + '}\n\\hline\n' + rows + '\n\\hline\n\\end{tabular}\n\n'
+    }
+    case 'hr': return '\\noindent\\rule{\\textwidth}{0.4pt}\n\n'
+    case 'blockMath': return '$' + t.text + '$\n\n'
+    case 'mermaidBlock': return '\\begin{verbatim}\n' + t.text + '\n\\end{verbatim}\n\n'
+    case 'defList': return '\\textbf{' + escL(t.dt) + '}：' + t.dds.map(escL).join('；') + '\n\n'
+    case 'footnoteDef': return ''
+    case 'space': return ''
+    case 'html': return (t.text || '') + '\n\n'
+    default: return (t.text || '') + '\n\n'
+  }
+}
+
+export function mdToLatex(md) {
+  return marked.lexer(md || '').map(blkL).join('').trim() + '\n'
+}
+
+// ========== Markdown → Typst ==========
+function inlT(node) {
+  if (typeof node === 'string') return escT(node)
+  const kids = function () {
+    return node.tokens ? node.tokens.map(inlT).join('') : escT(node.text || '')
+  }
+  switch (node.type) {
+    case 'text': {
+      if (node.tokens && node.tokens.length) return node.tokens.map(inlT).join('')
+      return escT(node.text || '')
+    }
+    case 'strong': return '*' + kids() + '*'
+    case 'em': return '_' + kids() + '_'
+    case 'del': return '#strike[' + kids() + ']'
+    case 'codespan': return T + (node.text || '') + T
+    case 'link': return '#link("' + node.href + '")[' + kids() + ']'
+    case 'image': return '#image("' + node.href + '")'
+    case 'inlineMath': return node.text ? '$' + node.text + '$' : ''
+    case 'highlightText': return '#text(fill: yellow)[' + kids() + ']'
+    case 'superscript': return '^' + kids() + '^'
+    case 'subscript': return '~' + kids() + '~'
+    case 'emoji': return node.emoji || ''
+    case 'footnoteRef': return '(脚注:' + node.id + ')'
+    case 'br': return '\\'
+    default: return escT(node.text || '')
+  }
+}
+
+function blockChildrenT(t) {
+  if (!t.tokens) return ''
+  return t.tokens.map(function (n) {
+    return n.type === 'list' || n.type === 'paragraph' || n.type === 'space' || n.type === 'blockquote' ? blkT(n) : inlT(n)
+  }).join('')
+}
+
+function blkT(t) {
+  switch (t.type) {
+    case 'heading':
+      return '='.repeat(Math.min(t.depth, 6)) + ' ' + (t.tokens || []).map(inlT).join('') + '\n\n'
+    case 'paragraph': return (t.tokens || []).map(inlT).join('') + '\n\n'
+    case 'code': return F + (t.lang || '') + '\n' + t.text + '\n' + F + '\n\n'
+    case 'blockquote': return '#quote[' + (t.tokens || []).map(inlT).join('') + ']\n\n'
+    case 'list':
+      return t.items.map(function (it, i) {
+        const prefix = t.ordered ? String(i + 1) + '. ' : '- '
+        return prefix + blockChildrenT(it)
+      }).join('\n') + '\n\n'
+    case 'table':
+      return [t.header].concat(t.rows).map(function (r) {
+        return '| ' + r.map(function (c) { return (c.tokens || []).map(inlT).join('') }).join(' | ') + ' |'
+      }).join('\n') + '\n\n'
+    case 'hr': return '#line(length: 100%)\n\n'
+    case 'blockMath': return '$$\n' + t.text + '\n$$\n\n'
+    case 'mermaidBlock': return F + '\n' + t.text + '\n' + F + '\n\n'
+    case 'defList': return '*' + t.dt + '*: ' + t.dds.join('; ') + '\n\n'
+    case 'footnoteDef': return ''
+    case 'space': return ''
+    case 'html': return (t.text || '') + '\n\n'
+    default: return (t.text || '') + '\n\n'
+  }
+}
+
 export function mdToTypst(md) {
-  let s = String(md || '')
-  s = s.replace(new RegExp('^' + F + '(\\w*)\\n([\\s\\S]*?)' + F + '$', 'gm'), F + '$1\n$2' + F)
-  s = s
-    .replace(/^###\s+(.+)$/gm, '=== $1')
-    .replace(/^##\s+(.+)$/gm, '== $1')
-    .replace(/^#\s+(.+)$/gm, '= $1')
-    .replace(/\*\*(.+?)\*\*|\*(.+?)\*/g, function (m, a, b) {
-      return a ? '*' + a + '*' : '_' + b + '_'
-    })
-    .replace(/~~([^~]+)~~/g, '#strike[$1]')
-    .replace(/(^|[^\\])`([^`]+)`/g, '$1' + T + '$2' + T)
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '#image("$2")')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '#link("$2")[$1]')
-  s = s.replace(/^>\s?(.*)$/gm, '#quote[$1]')
-  s = s.replace(/^---+$/gm, '#line(length: 100%)')
-  return s.trim() + '\n'
+  return marked.lexer(md || '').map(blkT).join('').trim() + '\n'
 }
 
-// ---------- LaTeX → Markdown ----------
+// ========== LaTeX → Markdown ==========
 export function latexToMd(src) {
   let s = String(src || '')
   s = s
@@ -116,7 +197,7 @@ export function latexToMd(src) {
   return s.trim() + '\n'
 }
 
-// ---------- Typst → Markdown ----------
+// ========== Typst → Markdown ==========
 export function typstToMd(src) {
   let s = String(src || '')
   s = s
@@ -132,7 +213,7 @@ export function typstToMd(src) {
   return s.trim() + '\n'
 }
 
-// ---------- 统一转换入口 ----------
+// ========== 统一转换入口 ==========
 export function convertDoc(content, from, to) {
   if (to === 'pdf') return null
   if (from === to) return content

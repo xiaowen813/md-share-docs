@@ -70,7 +70,8 @@ const inlineMath = {
     return i === -1 ? undefined : i
   },
   tokenizer(src) {
-    const match = src.match(/^\$([^$\n]+?)\$/)
+    // $ 后不能是空白或数字（避免价格 $5、普通美元 $ 被误判为公式），结束 $ 后同样不能紧跟数字
+    const match = src.match(/^\$(?!\d)([^\s$][^$\n]*?)\$(?!\d)/)
     if (match) return { type: 'inlineMath', raw: match[0], text: match[1] }
   },
   renderer(token) {
@@ -313,7 +314,7 @@ export function renderLatexTypst(src) {
   let s = String(src || '')
   // 1) 提取 verbatim 代码块（隐藏 \\begin{verbatim} / \\end{verbatim} 标记）
   const codeBlocks = []
-  s = s.replace(/\\begin\{verbatim\}\s*([\s\S]*?)\s*\\end\{verbatim\}/g, function (_m, code) {
+  s = s.replace(/\\begin\{verbatim\}\n?([\s\S]*?)\n?\\end\{verbatim\}/g, function (_m, code) {
     codeBlocks.push(code)
     return '\n@@CODE' + (codeBlocks.length - 1) + '@@\n'
   })

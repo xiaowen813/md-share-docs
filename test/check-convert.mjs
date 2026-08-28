@@ -1,10 +1,8 @@
-import { mdToLatex, mdToTypst, latexToMd, typstToMd } from '../src/lib/convert.js'
+import '../src/lib/markdownCore.js'
+import { mdToLatex, mdToTypst, latexToMd } from '../src/lib/convert.js'
 
-const md = '# 标题\n\n这是 **粗体** 和 *斜体*，公式 $a^2$。\n\n- 项目一\n- 项目二\n\n\`\`\`js\nconst x = 1;\n\`\`\`\n'
+const md = '# 标题 & 百分% 井#号\n\n正文含 & % # _ ~ ^ $ { } 和 **粗体** 与 *斜体*，行内代码 \`a_b#c\`，公式 $x^2$。\n\n- 项目一 & 二\n- **嵌套** 粗体\n\n\`\`\`js\nconst x = a_b;\n  const indented = 1;\n\`\`\`\n\n| 列A | 列B |\n| --- | --- |\n| 1 | 2 |\n\n[链接](https://example.com/a_b?x=1&y=2)\n'
 console.log('=== md → latex ===')
-console.log(mdToLatex(md).slice(0, 300))
+console.log(mdToLatex(md))
 console.log('=== md → typst ===')
-console.log(mdToTypst(md).slice(0, 250))
-const tex = '\\section*{章节}\n\n这是 \\textbf{重点}。\n\\begin{itemize}\n\\item 甲\n\\item 乙\n\\end{itemize}'
-console.log('=== latex → md ===')
-console.log(latexToMd(tex))
+console.log(mdToTypst(md).slice(0, 600))
