@@ -6,7 +6,9 @@ const F = T + T + T
 export function mdToLatex(md) {
   let s = String(md || '')
   // 代码块先处理（避免被行内规则误伤）
-  s = s.replace(new RegExp('^' + F + '(\\w*)\\n([\\s\\S]*?)' + F + '$', 'gm'), '\\begin{verbatim}\n$2\n\\end{verbatim}')
+  s = s.replace(new RegExp('^' + F + '(\\w*)\\n([\\s\\S]*?)' + F + '$', 'gm'), function (_m, lang, body) {
+    return '\\begin{verbatim}\n' + body.replace(/\n$/, '') + '\n\\end{verbatim}'
+  })
   s = s
     .replace(/^###\s+(.+)$/gm, '\\subsubsection*{$1}')
     .replace(/^##\s+(.+)$/gm, '\\subsection*{$1}')

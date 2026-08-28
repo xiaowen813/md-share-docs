@@ -528,6 +528,11 @@ body {
 .src-view .src-math .katex { font-size: 1.15em; }
 .src-view .src-line { display: block; min-height: 1.4em; white-space: pre-wrap; }
 .src-view .src-line.src-math-line { min-height: 2.2em; text-align: center; }
+.src-view .src-code-block {
+  background: var(--code-bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px; margin: 6px 0;
+}
+.src-view .src-code-block .src-line { min-height: 1.4em; }
 .section-title { font-size: 16px; margin: 28px 0 12px; }
 .section-gap { margin-top: 12px; }
 .folder-grid {

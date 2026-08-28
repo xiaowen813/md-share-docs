@@ -310,28 +310,45 @@ function escapeHtml(s) {
 }
 
 export function renderLatexTypst(src) {
-  // 先整体提取块级公式 $$...$$（可能跨行），再按源码行拆分，保证行结构完整可跨页
-  const segs = String(src || '').split(/(\$\$[\s\S]+?\$\$)/g)
+  let s = String(src || '')
+  // 1) 提取 verbatim 代码块（隐藏 \\begin{verbatim} / \\end{verbatim} 标记）
+  const codeBlocks = []
+  s = s.replace(/\\begin\{verbatim\}\s*([\s\S]*?)\s*\\end\{verbatim\}/g, function (_m, code) {
+    codeBlocks.push(code)
+    return '\n@@CODE' + (codeBlocks.length - 1) + '@@\n'
+  })
+  // 2) 提取块级公式 $$...$$（可能跨行）
+  const mathBlocks = []
+  s = s.replace(/\$\$[\s\S]+?\$\$/g, function (m) {
+    mathBlocks.push(m.slice(2, -2))
+    return '\n@@MATH' + (mathBlocks.length - 1) + '@@\n'
+  })
+  // 3) 按行拆分，行内公式 $...$ 用 KaTeX，其余转义
   let html = ''
-  for (const seg of segs) {
-    if (seg.startsWith('$$') && seg.endsWith('$$') && seg.length > 4) {
-      html += `<div class="src-line src-math-line">${katex.renderToString(seg.slice(2, -2), { displayMode: true, throwOnError: false })}</div>`
+  for (const line of s.split('\n')) {
+    const cm = line.match(/^@@CODE(\d+)@@$/)
+    if (cm) {
+      const lines = codeBlocks[+cm[1]].split('\n').map(function (l) { return '<div class="src-line">' + escapeHtml(l) + '</div>' }).join('')
+      html += '<div class="src-code-block">' + lines + '</div>'
       continue
     }
-    for (const line of seg.split('\n')) {
-      const inner = line
-        .split(/(\$[^$\n]+?\$)/g)
-        .map((p) => {
-          if (p.startsWith('$') && p.endsWith('$') && p.length > 2) {
-            return `<span class="src-math">${katex.renderToString(p.slice(1, -1), { displayMode: false, throwOnError: false })}</span>`
-          }
-          return escapeHtml(p)
-        })
-        .join('')
-      html += `<div class="src-line">${inner}</div>`
+    const mm = line.match(/^@@MATH(\d+)@@$/)
+    if (mm) {
+      html += '<div class="src-line src-math-line">' + katex.renderToString(mathBlocks[+mm[1]], { displayMode: true, throwOnError: false }) + '</div>'
+      continue
     }
+    const inner = line
+      .split(/(\$[^$\n]+?\$)/g)
+      .map(function (p) {
+        if (p.startsWith('$') && p.endsWith('$') && p.length > 2) {
+          return '<span class="src-math">' + katex.renderToString(p.slice(1, -1), { displayMode: false, throwOnError: false }) + '</span>'
+        }
+        return escapeHtml(p)
+      })
+      .join('')
+    html += '<div class="src-line">' + inner + '</div>'
   }
-  return `<pre class="src-view">${html}</pre>`
+  return '<pre class="src-view">' + html + '</pre>'
 }
 
 // 按文档类型渲染：md 完整渲染；latex/typst 源码视图（公式用 KaTeX）
