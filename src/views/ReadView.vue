@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { renderDocument } from '../lib/markdown'
 import { renderMermaidElements } from '../lib/mermaid'
+import { convertDoc } from '../lib/convert'
 import DocSidebar from '../components/DocSidebar.vue'
 
 const props = defineProps({ id: { type: String, required: true } })
@@ -62,6 +63,22 @@ function downloadMd() {
 function downloadPdf() {
   window.print()
 }
+
+// 导出为指定格式：md/latex/typst 转换后下载，pdf 走打印
+const showExport = ref(false)
+function exportAs(fmt) {
+  showExport.value = false
+  if (fmt === 'pdf') { downloadPdf(); return }
+  const out = convertDoc(doc.value.content_md, doc.value.doc_type, fmt)
+  const ext = { md: 'md', latex: 'tex', typst: 'typ' }[fmt] || 'md'
+  const mime = { md: 'text/markdown', latex: 'text/x-tex', typst: 'text/plain' }[fmt] || 'text/plain'
+  const blob = new Blob([out], { type: mime + ';charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `${doc.value.slug || 'document'}.${ext}`
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
 </script>
 
 <template>
@@ -77,8 +94,16 @@ function downloadPdf() {
         <button class="btn" @click="goBack">← 返回</button>
         <h1 class="doc-title">{{ doc.title }}</h1>
         <div class="spacer"></div>
-        <button class="btn" @click="downloadMd">下载 .md</button>
-        <button class="btn" @click="downloadPdf">下载 PDF</button>
+        <div class="dropdown no-print">
+          <button class="btn" @click="showExport = !showExport">⬇ 导出 ▾</button>
+          <div v-if="showExport" class="dropdown-menu">
+            <button class="dropdown-item" @click="exportAs('md')">Markdown (.md)</button>
+            <button class="dropdown-item" @click="exportAs('pdf')">PDF（打印导出）</button>
+            <button class="dropdown-item" @click="exportAs('latex')">LaTeX (.tex)</button>
+            <button class="dropdown-item" @click="exportAs('typst')">Typst (.typ)</button>
+          </div>
+          <div v-if="showExport" class="dropdown-backdrop" @click="showExport = false"></div>
+        </div>
         <router-link :to="`/doc/${doc.id}/edit`" class="btn btn-primary">编辑</router-link>
       </div>
 

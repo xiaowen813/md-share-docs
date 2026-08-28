@@ -5,6 +5,7 @@ import JSZip from 'jszip'
 import { supabase } from '../lib/supabase'
 import { renderDocument } from '../lib/markdown'
 import { renderMermaidElements } from '../lib/mermaid'
+import { convertDoc } from '../lib/convert'
 import { readMdFile, rememberUpload } from '../lib/uploadSession'
 import { useFileDrop } from '../lib/useFileDrop'
 import { canWrite } from '../lib/session'
@@ -118,7 +119,38 @@ function safeName(name) {
   return (name || 'folder').replace(/[\\/:*?"<>|]/g, '_')
 }
 
-// 一键下载全部 .md（打包成 zip）
+// 导出全部为指定格式（md/latex/typst 转换后打包 zip）
+const showExport = ref(false)
+async function exportAll(fmt) {
+  showExport.value = false
+  if (fmt === 'pdf') { downloadAllPdf(); return }
+  downloading.value = 'md'
+  error.value = ''
+  try {
+    const list = await fetchAllDocs()
+    if (list.length === 0) { alert('这个文件夹里还没有文档'); return }
+    const zip = new JSZip()
+    const dir = safeName(folder.value.name)
+    const extOf = { md: 'md', latex: 'tex', typst: 'typ' }[fmt] || 'md'
+    for (const doc of list) {
+      const out = convertDoc(doc.content_md, doc.doc_type, fmt)
+      const file = `${doc.slug || doc.title || 'document'}.${extOf}`
+      zip.file(`${dir}/${file}`, out)
+    }
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `${dir}.${extOf}${fmt === 'typst' ? 'st' : ''}.zip`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  } catch (e) {
+    error.value = e.message || '下载失败'
+  } finally {
+    downloading.value = ''
+  }
+}
+
+// 一键下载全部源文件（按各自类型打包 zip，保留）
 async function downloadAllMd() {
   downloading.value = 'md'
   error.value = ''
@@ -386,9 +418,18 @@ function paginateAndPrint(wrap, folderName, docs) {
         <h1 class="doc-title">📁 {{ folder.name }}</h1>
         <span class="muted">{{ docs.length }} 篇文档</span>
         <div class="spacer"></div>
-        <button class="btn" :disabled="downloading !== ''" @click="downloadAllMd">
-          {{ downloading === 'md' ? '打包中…' : '下载全部源文件' }}
-        </button>
+        <div class="dropdown no-print">
+          <button class="btn" :disabled="downloading !== ''" @click="showExport = !showExport">
+            {{ downloading === 'md' ? '打包中…' : '导出全部 ▾' }}
+          </button>
+          <div v-if="showExport" class="dropdown-menu">
+            <button class="dropdown-item" @click="exportAll('md')">全部为 Markdown (.md)</button>
+            <button class="dropdown-item" @click="exportAll('latex')">全部为 LaTeX (.tex)</button>
+            <button class="dropdown-item" @click="exportAll('typst')">全部为 Typst (.typ)</button>
+            <button class="dropdown-item" @click="exportAll('pdf')">全部为 PDF（打印）</button>
+          </div>
+          <div v-if="showExport" class="dropdown-backdrop" @click="showExport = false"></div>
+        </div>
         <button class="btn" :disabled="downloading !== ''" @click="downloadAllPdf">
           {{ downloading === 'pdf' ? '准备中…' : '下载全部 PDF' }}
         </button>

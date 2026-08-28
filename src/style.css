@@ -66,6 +66,21 @@ body {
 .add-user-row { display: flex; gap: 8px; }
 .add-user-row input { flex: 1; }
 
+/* ---------- 导出下拉菜单 ---------- */
+.dropdown { position: relative; }
+.dropdown-backdrop { position: fixed; inset: 0; z-index: 40; }
+.dropdown-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 50;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: var(--shadow-md); padding: 6px; min-width: 190px;
+}
+.dropdown-item {
+  display: block; width: 100%; text-align: left;
+  padding: 8px 12px; border: none; background: none; border-radius: 7px;
+  font-size: 14px; color: var(--text); cursor: pointer;
+}
+.dropdown-item:hover { background: var(--code-bg); }
+
 /* ---------- 文档侧边栏（VSCode 风格） ---------- */
 .page-with-sidebar { display: flex; align-items: flex-start; gap: 0; }
 .sidebar-content { flex: 1; min-width: 0; }
