@@ -6,6 +6,7 @@ import { renderDocument } from '../lib/markdown'
 import { renderMermaidElements } from '../lib/mermaid'
 import { canWrite } from '../lib/session'
 import HistoryModal from '../components/HistoryModal.vue'
+import DocSidebar from '../components/DocSidebar.vue'
 
 const props = defineProps({ id: { type: String, required: true } })
 const router = useRouter()
@@ -198,6 +199,18 @@ onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
 })
+// 侧边栏切换文档时重新加载
+watch(() => props.id, () => {
+  doc.value = null
+  loading.value = true
+  denied.value = false
+  error.value = ''
+  message.value = ''
+  savedContent = ''
+  content.value = ''
+  title.value = ''
+  loadDoc()
+})
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('mousemove', onMouseMove)
@@ -207,6 +220,9 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="edit-page">
+    <div class="page-with-sidebar">
+      <DocSidebar :current-id="id" mode="edit" />
+      <div class="sidebar-content">
     <p v-if="loading" class="muted">加载中…</p>
     <p v-else-if="denied" class="muted" style="padding:40px;text-align:center">
       🔒 你没有编辑权限，请联系管理员授权后登录。
@@ -263,5 +279,7 @@ onBeforeUnmount(() => {
       @restored="onRestored"
       @close="showHistory = false"
     />
+      </div>
+    </div>
   </section>
 </template>

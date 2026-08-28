@@ -1,9 +1,10 @@
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { renderDocument } from '../lib/markdown'
 import { renderMermaidElements } from '../lib/mermaid'
+import DocSidebar from '../components/DocSidebar.vue'
 
 const props = defineProps({ id: { type: String, required: true } })
 const router = useRouter()
@@ -35,6 +36,13 @@ async function load() {
   renderMermaidElements(contentEl.value)
 }
 onMounted(load)
+// 侧边栏切换文档时重新加载
+watch(() => props.id, () => {
+  doc.value = null
+  loading.value = true
+  error.value = ''
+  load()
+})
 
 // 按文档类型下载源文件：md → .md，latex → .tex，typst → .typ
 function downloadMd() {
@@ -58,10 +66,13 @@ function downloadPdf() {
 
 <template>
   <section>
-    <p v-if="loading" class="muted">加载中…</p>
-    <p v-else-if="error" class="error">{{ error }}</p>
+    <div class="page-with-sidebar">
+      <DocSidebar :current-id="id" mode="read" />
+      <div class="sidebar-content">
+        <p v-if="loading" class="muted">加载中…</p>
+        <p v-else-if="error" class="error">{{ error }}</p>
 
-    <template v-else-if="doc">
+        <template v-else-if="doc">
       <div class="toolbar no-print">
         <button class="btn" @click="goBack">← 返回</button>
         <h1 class="doc-title">{{ doc.title }}</h1>
@@ -71,10 +82,12 @@ function downloadPdf() {
         <router-link :to="`/doc/${doc.id}/edit`" class="btn btn-primary">编辑</router-link>
       </div>
 
-      <article ref="contentEl" class="markdown-body" v-html="html"></article>
-      <p class="muted no-print" style="text-align:center;margin-top:12px">
-        💡 下载 PDF 时，在浏览器打印对话框里选择“另存为 PDF”即可
-      </p>
-    </template>
+        <article ref="contentEl" class="markdown-body" v-html="html"></article>
+        <p class="muted no-print" style="text-align:center;margin-top:12px">
+          💡 下载 PDF 时，在浏览器打印对话框里选择“另存为 PDF”即可
+        </p>
+        </template>
+      </div>
+    </div>
   </section>
 </template>

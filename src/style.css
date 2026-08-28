@@ -65,6 +65,49 @@ body {
 .theme-dark .role-badge.role-anonymous { background: #334155; color: #cbd5e1; }
 .add-user-row { display: flex; gap: 8px; }
 .add-user-row input { flex: 1; }
+
+/* ---------- 文档侧边栏（VSCode 风格） ---------- */
+.page-with-sidebar { display: flex; align-items: flex-start; gap: 0; }
+.sidebar-content { flex: 1; min-width: 0; }
+.doc-sidebar {
+  width: 240px; flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky; top: 58px;
+  height: calc(100vh - 58px);
+  overflow-y: auto;
+  transition: width .18s ease;
+}
+.doc-sidebar.collapsed { width: 40px; }
+.sidebar-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 10px 8px 14px; border-bottom: 1px solid var(--border);
+}
+.sidebar-title { font-size: 13px; font-weight: 700; color: var(--muted); }
+.sidebar-toggle { font-size: 13px; }
+.sidebar-tree { padding: 8px 6px 20px; font-size: 13px; }
+.tree-group { margin-bottom: 6px; }
+.tree-label { color: var(--muted); font-size: 12px; font-weight: 700; padding: 6px 8px; letter-spacing: .3px; }
+.tree-folder { cursor: pointer; user-select: none; border-radius: 6px; }
+.tree-folder:hover { background: var(--code-bg); }
+.folder-arrow { display: inline-block; width: 14px; transition: transform .15s ease; font-size: 10px; }
+.folder-arrow.open { transform: rotate(90deg); }
+.folder-name { margin-left: 2px; }
+.tree-children { padding-left: 0; }
+.tree-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px 5px 26px; border-radius: 6px;
+  color: var(--text); text-decoration: none;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tree-item:hover { background: var(--code-bg); }
+.tree-item.active { background: var(--primary-soft); color: var(--primary-dark); font-weight: 600; }
+.tree-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.type-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.type-dot.t-md { background: #0ea5e9; }
+.type-dot.t-latex { background: #f59e0b; }
+.type-dot.t-typst { background: #22c55e; }
+.tree-empty { padding: 4px 8px 4px 26px; color: var(--muted); font-size: 12px; }
 .nav-link { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; }
 .nav-link:hover { color: var(--primary); }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
