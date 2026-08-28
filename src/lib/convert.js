@@ -125,7 +125,7 @@ function blkL(t) {
       return '\\begin{table}[h]\n\\centering\n\\begin{tabular}{' + cols + '}\n\\toprule\n' + header + '\n\\midrule\n' + rows + '\n\\bottomrule\n\\end{tabular}\n\\end{table}\n\n'
     }
     case 'hr': return '\\noindent\\rule{\\textwidth}{0.4pt}\n\n'
-    case 'blockMath': return '$' + t.text + '$\n\n'
+    case 'blockMath': return '$$' + t.text + '$$\n\n'
     case 'mermaidBlock': return '\\begin{lstlisting}\n' + t.text + '\n\\end{lstlisting}\n\n'
     case 'defList': return '\\textbf{' + escL(t.dt) + '}：' + t.dds.map(escL).join('；') + '\n\n'
     case 'footnoteDef': return ''
@@ -232,6 +232,15 @@ export function mdToTypst(md) {
 // ========== LaTeX → Markdown ==========
 export function latexToMd(src) {
   let s = String(src || '')
+  // 公式保护：先把 $...$ / $$...$$ / \[ … \] 提取为占位符，其余转换不触碰公式
+  const math = []
+  const saveMath = function (m) {
+    math.push(m)
+    return '\u0000MATH' + (math.length - 1) + '\u0000'
+  }
+  s = s.replace(/\$\$[\s\S]+?\$\$/g, saveMath)
+  s = s.replace(/\\\[[\s\S]*?\\\]/g, saveMath)
+  s = s.replace(/\$[^$\n]+?\$/g, saveMath)
   s = s
     .replace(/\\textbackslash\{\}/g, '\\')
     .replace(/\\textbf\{([^}]*)\}/g, '**$1**')
@@ -264,12 +273,22 @@ export function latexToMd(src) {
     .replace(/\\rule\{\\textwidth\}\{[^}]*\}/g, '---')
     .replace(/\\([a-zA-Z]+)\{(.*?)\}/g, '$2')
     .replace(/\\([a-zA-Z]+)\b/g, '')
+  // 还原公式占位
+  s = s.replace(/\u0000MATH(\d+)\u0000/g, function (_m, i) { return math[+i] || '' })
   return s.trim() + '\n'
 }
 
 // ========== Typst → Markdown ==========
 export function typstToMd(src) {
   let s = String(src || '')
+  // 公式保护
+  const math = []
+  const saveMath = function (m) {
+    math.push(m)
+    return '\u0000MATH' + (math.length - 1) + '\u0000'
+  }
+  s = s.replace(/\$\$[\s\S]+?\$\$/g, saveMath)
+  s = s.replace(/\$[^$\n]+?\$/g, saveMath)
   s = s
     .replace(/^([=]+)\s*/gm, function (_m, eq) { return '#'.repeat(eq.length) + ' ' })
     .replace(/#strike\[([^\]]*)\]/g, '~~$1~~')
@@ -280,6 +299,7 @@ export function typstToMd(src) {
     .replace(/#text\(fill: yellow\)\[([^\]]*)\]/g, '==$1==')
     .replace(/\*([^*\n]+)\*/g, '**$1**')
     .replace(/_([^_\n]+)_/g, '*$1*')
+  s = s.replace(/\u0000MATH(\d+)\u0000/g, function (_m, i) { return math[+i] || '' })
   return s.trim() + '\n'
 }
 
