@@ -95,12 +95,24 @@ as $$
     when auth.uid() is null then 'anonymous'
     when exists (
       select 1 from public.authorized_users
-      where github_username = coalesce(auth.jwt() -> 'user_metadata' ->> 'user_name', '')
+      where github_username = lower(
+        coalesce(
+          auth.jwt() -> 'user_metadata' ->> 'user_name',
+          auth.jwt() -> 'user_metadata' ->> 'preferred_username',
+          ''
+        )
+      )
         and is_admin
     ) then 'admin'
     when exists (
       select 1 from public.authorized_users
-      where github_username = coalesce(auth.jwt() -> 'user_metadata' ->> 'user_name', '')
+      where github_username = lower(
+        coalesce(
+          auth.jwt() -> 'user_metadata' ->> 'user_name',
+          auth.jwt() -> 'user_metadata' ->> 'preferred_username',
+          ''
+        )
+      )
     ) then 'editor'
     else 'anonymous'
   end;
@@ -124,7 +136,7 @@ begin
     return false;
   end if;
   insert into public.authorized_users (github_username, is_admin)
-  values (v_name, true)
+  values (lower(v_name), true)
   on conflict (github_username) do nothing;
   return true;
 end;
