@@ -314,7 +314,7 @@ export function renderLatexTypst(src) {
   let s = String(src || '')
   // 1) 提取 verbatim 代码块（隐藏 \\begin{verbatim} / \\end{verbatim} 标记）
   const codeBlocks = []
-  s = s.replace(/\\begin\{verbatim\}\n?([\s\S]*?)\n?\\end\{verbatim\}/g, function (_m, code) {
+  s = s.replace(/\\begin\{(?:verbatim|lstlisting)\}\n?([\s\S]*?)\n?\\end\{(?:verbatim|lstlisting)\}/g, function (_m, code) {
     codeBlocks.push(code)
     return '\n@@CODE' + (codeBlocks.length - 1) + '@@\n'
   })
