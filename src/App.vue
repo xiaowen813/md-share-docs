@@ -6,7 +6,7 @@ import { supabase } from './lib/supabase'
 import { user, role, canWrite, refreshAuth, login, logout, displayName } from './lib/session'
 
 const route = useRoute()
-const isEditor = computed(() => route.name === 'edit')
+const isEditor = computed(() => route.name === 'edit' || route.name === 'read')
 
 // 全站主题：黑夜 / 白天（class 挂到 <html>）
 const theme = ref(localStorage.getItem('mdshare-theme') || 'light')

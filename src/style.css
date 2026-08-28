@@ -231,6 +231,11 @@ body {
   box-shadow: var(--shadow-sm);
   font-size: 18px; line-height: 1.8;
 }
+/* 阅读页正文加宽（约 1.8 倍，适合代码/公式/表格等宽内容） */
+.sidebar-content > .markdown-body {
+  max-width: 1560px;
+  padding: 48px 64px;
+}
 .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin-top: 1.4em; }
 .markdown-body h1 { font-size: 1.9em; }
 .markdown-body h2 { border-bottom: 1px solid var(--border); padding-bottom: .3em; }
