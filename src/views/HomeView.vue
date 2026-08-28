@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { readMdFile, rememberUpload } from '../lib/uploadSession'
 import { useFileDrop } from '../lib/useFileDrop'
+import { canWrite } from '../lib/session'
 import DropOverlay from '../components/DropOverlay.vue'
 
 const folders = ref([])
@@ -99,10 +100,12 @@ onMounted(load)
     <div class="home-head">
       <h1>文档列表</h1>
       <div class="head-actions">
-        <button class="btn" @click="showNewFolder = true">＋ 新建文件夹</button>
-        <button class="btn" @click="fileInput?.click()">⬆ 上传文件</button>
-        <router-link to="/new" class="btn btn-primary">＋ 新建文档</router-link>
-        <input ref="fileInput" type="file" accept=".md,.markdown,.txt,.tex,.typ" class="hidden-file" @change="onPickFile" />
+        <template v-if="canWrite()">
+          <button class="btn" @click="showNewFolder = true">＋ 新建文件夹</button>
+          <button class="btn" @click="fileInput?.click()">⬆ 上传文件</button>
+          <router-link to="/new" class="btn btn-primary">＋ 新建文档</router-link>
+          <input ref="fileInput" type="file" accept=".md,.markdown,.txt,.tex,.typ" class="hidden-file" @change="onPickFile" />
+        </template>
       </div>
     </div>
 
@@ -143,7 +146,7 @@ onMounted(load)
           v-for="doc in docs"
           :key="doc.id"
           class="doc-card draggable"
-          draggable="true"
+          :draggable="canWrite()"
           @dragstart="onDocDragStart(doc)"
         >
           <div>

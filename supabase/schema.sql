@@ -1,19 +1,24 @@
 -- ============================================================
--- MD Share 数据库结构
+-- MD Share 数据库结构（GitHub 登录 + 管理员权限版）
 -- 使用方法：Supabase 控制台 → SQL Editor → 粘贴本文件 → Run
--- 说明：所有“写”操作只能通过 RPC 函数完成，函数内服务端校验密码，
---       客户端（即使拿到 anon key）无法绕过密码直接改数据。
---
--- 注意（重要）：
---   Supabase 的 pgcrypto 扩展安装在 extensions schema 里，
---   所以所有函数必须能访问 extensions 目录：
---   1) 函数统一使用 set search_path = public, extensions
---   2) crypt / gen_salt 显式写为 extensions.crypt / extensions.gen_salt
---   否则会出现 “function crypt(text, text) does not exist” 错误。
+-- 权限模型：
+--   · 所有人可以阅读（公开共享）
+--   · 第一个登录的 GitHub 用户自动成为管理员
+--   · 管理员可以添加/移除授权用户
+--   · 管理员和授权用户可以新建/编辑/上传/排序/移动/删除
+--   · 未登录或未授权的用户只能阅读
 -- ============================================================
 
--- bcrypt 密码哈希（pgcrypto 在 Supabase 中默认可用，这句是幂等的）
-create extension if not exists pgcrypto;
+-- ------------------------------------------------------------
+-- 授权用户表（admin 可读）
+-- github_username: GitHub 用户名（授权标识）
+-- ------------------------------------------------------------
+create table if not exists public.authorized_users (
+  id              uuid primary key default gen_random_uuid(),
+  github_username text unique not null,
+  is_admin        boolean not null default false,
+  created_at      timestamptz not null default now()
+);
 
 -- ------------------------------------------------------------
 -- 文件夹表（公开可读，创建走 RPC）
@@ -25,22 +30,19 @@ create table if not exists public.folders (
 );
 
 alter table public.folders enable row level security;
-
 drop policy if exists "folders_public_read" on public.folders;
 create policy "folders_public_read" on public.folders
   for select using (true);
 
 -- ------------------------------------------------------------
 -- 文档表（folder_id 为空 = 根目录）
--- doc_type: md | latex | typst（文件类型）
--- sort_order: 文件夹内手动排序
+-- doc_type: md | latex | typst；sort_order: 文件夹内手动排序
 -- ------------------------------------------------------------
 create table if not exists public.documents (
   id            uuid primary key default gen_random_uuid(),
   slug          text unique not null,
   title         text not null,
   content_md    text not null default '',
-  password_hash text not null,
   folder_id     uuid references public.folders(id) on delete set null,
   doc_type      text not null default 'md' check (doc_type in ('md', 'latex', 'typst')),
   sort_order    integer not null default 0,
@@ -48,25 +50,21 @@ create table if not exists public.documents (
   updated_at    timestamptz not null default now()
 );
 
--- 老表升级时补充新列（幂等）
+-- 老表升级（幂等）：去掉密码列，补齐新列
 alter table public.documents add column if not exists folder_id uuid references public.folders(id) on delete set null;
 alter table public.documents add column if not exists doc_type text not null default 'md';
 alter table public.documents add column if not exists sort_order integer not null default 0;
+alter table public.documents drop column if exists password_hash;
 create index if not exists documents_folder_idx on public.documents (folder_id);
 create index if not exists documents_folder_sort_idx on public.documents (folder_id, sort_order);
 
 alter table public.documents enable row level security;
-
 drop policy if exists "documents_public_read" on public.documents;
 create policy "documents_public_read" on public.documents
   for select using (true);
 
--- 注意：没有创建任何 insert/update/delete 策略 => 客户端直接写表一律被 RLS 拒绝。
--- 写操作只能走下面的 SECURITY DEFINER 函数（内部校验密码）。
-
 -- ------------------------------------------------------------
--- 历史版本表（每次“保存前”的旧内容快照，恢复前也会插入一条）
--- 只读公开：任何人都能看版本列表；写入只允许通过 RPC 函数
+-- 历史版本表（公开可读，写入只走 RPC）
 -- ------------------------------------------------------------
 create table if not exists public.document_versions (
   id          uuid primary key default gen_random_uuid(),
@@ -75,49 +73,159 @@ create table if not exists public.document_versions (
   content_md  text not null default '',
   created_at  timestamptz not null default now()
 );
-
 create index if not exists document_versions_doc_idx
   on public.document_versions (document_id, created_at desc);
-
 alter table public.document_versions enable row level security;
-
 drop policy if exists "document_versions_public_read" on public.document_versions;
 create policy "document_versions_public_read" on public.document_versions
   for select using (true);
 
--- ------------------------------------------------------------
--- 0) 创建文件夹
--- ------------------------------------------------------------
+-- ============================================================
+-- 权限函数
+-- ============================================================
+
+-- 当前用户角色：admin | editor | anonymous
+create or replace function public.current_user_role()
+returns text
+language sql
+security definer
+set search_path = public
+as $$
+  select case
+    when auth.uid() is null then 'anonymous'
+    when exists (
+      select 1 from public.authorized_users
+      where github_username = coalesce(auth.jwt() -> 'user_metadata' ->> 'user_name', '')
+        and is_admin
+    ) then 'admin'
+    when exists (
+      select 1 from public.authorized_users
+      where github_username = coalesce(auth.jwt() -> 'user_metadata' ->> 'user_name', '')
+    ) then 'editor'
+    else 'anonymous'
+  end;
+$$;
+
+-- 首用户自动成为管理员（仅当表为空时）
+create or replace function public.ensure_admin()
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_name text;
+begin
+  if exists (select 1 from public.authorized_users) then
+    return false;
+  end if;
+  v_name := coalesce(auth.jwt() -> 'user_metadata' ->> 'user_name', '');
+  if v_name = '' then
+    return false;
+  end if;
+  insert into public.authorized_users (github_username, is_admin)
+  values (v_name, true)
+  on conflict (github_username) do nothing;
+  return true;
+end;
+$$;
+
+-- 内部：要求 editor/admin，否则拒绝
+create or replace function public.require_editor()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.current_user_role() not in ('admin', 'editor') then
+    raise exception '无权限：需要管理员授权';
+  end if;
+end;
+$$;
+
+-- 添加授权用户（仅 admin）
+create or replace function public.add_authorized_user(p_github_username text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.current_user_role() <> 'admin' then
+    raise exception '无权限：仅管理员可添加用户';
+  end if;
+  if p_github_username is null or btrim(p_github_username) = '' then
+    raise exception '请输入 GitHub 用户名';
+  end if;
+  insert into public.authorized_users (github_username)
+  values (lower(btrim(p_github_username)))
+  on conflict (github_username) do nothing;
+  return true;
+end;
+$$;
+
+-- 移除授权用户（仅 admin）
+create or replace function public.remove_authorized_user(p_github_username text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.current_user_role() <> 'admin' then
+    raise exception '无权限：仅管理员可移除用户';
+  end if;
+  delete from public.authorized_users
+  where github_username = lower(btrim(p_github_username))
+    and is_admin = false;
+  return true;
+end;
+$$;
+
+-- 授权用户表 RLS：仅 admin 可读
+alter table public.authorized_users enable row level security;
+drop policy if exists "authorized_users_admin_read" on public.authorized_users;
+create policy "authorized_users_admin_read" on public.authorized_users
+  for select using (public.current_user_role() = 'admin');
+
+-- ============================================================
+-- 写操作（全部要求 editor/admin，不使用密码）
+-- ============================================================
+
+-- 创建文件夹
 create or replace function public.create_folder(p_name text)
 returns public.folders
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public
 as $$
 declare
   v_folder public.folders;
 begin
+  perform public.require_editor();
   if p_name is null or btrim(p_name) = '' then
     raise exception '文件夹名称不能为空';
   end if;
-  insert into public.folders (name)
-  values (btrim(p_name))
-  returning * into v_folder;
+  insert into public.folders (name) values (btrim(p_name)) returning * into v_folder;
   return v_folder;
 end;
 $$;
 
--- ------------------------------------------------------------
--- 1) 创建文档（设置编辑密码，可选放进文件夹）
--- ------------------------------------------------------------
--- 清理旧的 4/5 参数版本，避免函数重载混淆
-drop function if exists public.create_document(text, text, text, text);
+-- 清理旧的带密码版本函数
+drop function if exists public.create_document(text, text, text, text, uuid, text);
 drop function if exists public.create_document(text, text, text, text, uuid);
+drop function if exists public.create_document(text, text, text, text);
+drop function if exists public.update_document(uuid, text, text, text);
+drop function if exists public.delete_document(uuid, text);
+drop function if exists public.restore_document_version(uuid, uuid, text);
+drop function if exists public.verify_document_password(uuid, text);
+drop function if exists public.change_document_password(uuid, text, text);
 
+-- 创建文档
 create or replace function public.create_document(
   p_slug text,
   p_title text,
-  p_password text,
   p_content_md text default '',
   p_folder_id uuid default null,
   p_doc_type text default 'md'
@@ -125,19 +233,17 @@ create or replace function public.create_document(
 returns public.documents
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public
 as $$
 declare
   v_doc public.documents;
 begin
+  perform public.require_editor();
   if p_slug is null or btrim(p_slug) = '' then
     raise exception 'slug 不能为空';
   end if;
   if p_title is null or btrim(p_title) = '' then
     raise exception '标题不能为空';
-  end if;
-  if p_password is null or length(p_password) < 4 then
-    raise exception '编辑密码至少 4 位';
   end if;
   if p_folder_id is not null and not exists (select 1 from public.folders where id = p_folder_id) then
     raise exception '文件夹不存在';
@@ -145,197 +251,115 @@ begin
   if p_doc_type is null or p_doc_type not in ('md', 'latex', 'typst') then
     raise exception '文件类型无效';
   end if;
-
-  insert into public.documents (slug, title, content_md, password_hash, folder_id, doc_type)
-  values (
-    lower(btrim(p_slug)),
-    btrim(p_title),
-    coalesce(p_content_md, ''),
-    extensions.crypt(p_password, extensions.gen_salt('bf')),
-    p_folder_id,
-    p_doc_type
-  )
+  insert into public.documents (slug, title, content_md, folder_id, doc_type)
+  values (lower(btrim(p_slug)), btrim(p_title), coalesce(p_content_md, ''), p_folder_id, p_doc_type)
   returning * into v_doc;
-
   return v_doc;
 end;
 $$;
 
--- ------------------------------------------------------------
--- 2) 校验编辑密码（解锁前端编辑界面用）
--- ------------------------------------------------------------
-create or replace function public.verify_document_password(p_id uuid, p_password text)
-returns boolean
-language sql
-security definer
-set search_path = public, extensions
-as $$
-  select exists (
-    select 1 from public.documents
-    where id = p_id
-      and password_hash = extensions.crypt(p_password, password_hash)
-  );
-$$;
-
--- ------------------------------------------------------------
--- 3) 更新文档（必须携带正确密码；保存前自动把旧内容存为历史版本）
--- ------------------------------------------------------------
+-- 更新文档（保存前自动把旧内容存为历史版本）
 create or replace function public.update_document(
   p_id uuid,
-  p_password text,
   p_content_md text,
   p_title text default null
 )
 returns public.documents
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public
 as $$
 declare
   v_doc public.documents;
   v_new_title text;
   v_new_content text;
 begin
-  -- 锁行并校验密码
+  perform public.require_editor();
   select * into v_doc from public.documents where id = p_id for update;
-  if not found or v_doc.password_hash <> extensions.crypt(p_password, v_doc.password_hash) then
-    raise exception '密码不正确';
+  if not found then
+    raise exception '文档不存在';
   end if;
-
   v_new_title   := coalesce(nullif(btrim(p_title), ''), v_doc.title);
   v_new_content := coalesce(p_content_md, v_doc.content_md);
-
-  -- 内容或标题有变化时，把当前版本存入历史表
   if v_doc.title is distinct from v_new_title
      or v_doc.content_md is distinct from v_new_content then
     insert into public.document_versions (document_id, title, content_md)
     values (v_doc.id, v_doc.title, v_doc.content_md);
   end if;
-
-  -- 应用更新
   update public.documents
-  set content_md = v_new_content,
-      title      = v_new_title,
-      updated_at = now()
+  set content_md = v_new_content, title = v_new_title, updated_at = now()
   where id = p_id
   returning * into v_doc;
-
   return v_doc;
 end;
 $$;
 
--- ------------------------------------------------------------
--- 4) 修改编辑密码（必须携带正确旧密码）
--- ------------------------------------------------------------
-create or replace function public.change_document_password(
-  p_id uuid,
-  p_old_password text,
-  p_new_password text
-)
-returns boolean
-language plpgsql
-security definer
-set search_path = public, extensions
-as $$
-declare
-  v_doc public.documents;
-begin
-  if p_new_password is null or length(p_new_password) < 4 then
-    raise exception '新密码至少 4 位';
-  end if;
-
-  select * into v_doc from public.documents where id = p_id;
-  if not found or v_doc.password_hash <> extensions.crypt(p_old_password, v_doc.password_hash) then
-    raise exception '旧密码不正确';
-  end if;
-
-  update public.documents
-  set password_hash = extensions.crypt(p_new_password, extensions.gen_salt('bf'))
-  where id = p_id;
-
-  return true;
-end;
-$$;
-
--- ------------------------------------------------------------
--- 5) 恢复历史版本（必须携带正确密码；恢复前把当前内容存入历史）
--- ------------------------------------------------------------
+-- 恢复历史版本
 create or replace function public.restore_document_version(
   p_id uuid,
-  p_version_id uuid,
-  p_password text
+  p_version_id uuid
 )
 returns public.documents
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public
 as $$
 declare
   v_doc public.documents;
   v_ver public.document_versions;
 begin
+  perform public.require_editor();
   select * into v_doc from public.documents where id = p_id for update;
-  if not found or v_doc.password_hash <> extensions.crypt(p_password, v_doc.password_hash) then
-    raise exception '密码不正确';
+  if not found then
+    raise exception '文档不存在';
   end if;
-
   select * into v_ver from public.document_versions
   where id = p_version_id and document_id = p_id;
   if not found then
     raise exception '版本不存在';
   end if;
-
-  -- 恢复前把当前内容存为历史，避免丢失
   insert into public.document_versions (document_id, title, content_md)
   values (v_doc.id, v_doc.title, v_doc.content_md);
-
   update public.documents
-  set content_md = v_ver.content_md,
-      title      = v_ver.title,
-      updated_at = now()
+  set content_md = v_ver.content_md, title = v_ver.title, updated_at = now()
   where id = p_id
   returning * into v_doc;
-
   return v_doc;
 end;
 $$;
 
--- ------------------------------------------------------------
--- 6) 删除文档（必须携带正确密码；历史版本随外键级联删除）
--- ------------------------------------------------------------
-create or replace function public.delete_document(p_id uuid, p_password text)
+-- 删除文档
+create or replace function public.delete_document(p_id uuid)
 returns boolean
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public
 as $$
 declare
   v_deleted int;
 begin
-  delete from public.documents
-  where id = p_id
-    and password_hash = extensions.crypt(p_password, password_hash);
+  perform public.require_editor();
+  delete from public.documents where id = p_id;
   get diagnostics v_deleted = row_count;
   if v_deleted = 0 then
-    raise exception '密码不正确';
+    raise exception '文档不存在';
   end if;
   return true;
 end;
 $$;
 
--- ------------------------------------------------------------
--- 7) 手动排序（按传入的 id 数组顺序设置 sort_order）
--- ------------------------------------------------------------
+-- 手动排序
 create or replace function public.reorder_documents(p_ids uuid[])
 returns boolean
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public
 as $$
 declare
   i int := 0;
   v_id uuid;
 begin
+  perform public.require_editor();
   foreach v_id in array p_ids loop
     update public.documents set sort_order = i where id = v_id;
     i := i + 1;
@@ -344,16 +368,15 @@ begin
 end;
 $$;
 
--- ------------------------------------------------------------
--- 8) 移动文档到文件夹（null = 移到根目录）
--- ------------------------------------------------------------
+-- 移动文档到文件夹
 create or replace function public.move_document(p_doc_id uuid, p_folder_id uuid)
 returns boolean
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public
 as $$
 begin
+  perform public.require_editor();
   if p_folder_id is not null and not exists (select 1 from public.folders where id = p_folder_id) then
     raise exception '文件夹不存在';
   end if;
@@ -367,13 +390,28 @@ begin
 end;
 $$;
 
--- 显式授权给匿名/登录角色（匿名角色只能读和调用函数，不能写表）
-grant execute on function public.move_document(uuid, uuid) to anon, authenticated;
-grant execute on function public.create_folder(text) to anon, authenticated;
-grant execute on function public.create_document(text, text, text, text, uuid, text) to anon, authenticated;
-grant execute on function public.reorder_documents(uuid[]) to anon, authenticated;
-grant execute on function public.verify_document_password(uuid, text) to anon, authenticated;
-grant execute on function public.update_document(uuid, text, text, text) to anon, authenticated;
-grant execute on function public.change_document_password(uuid, text, text) to anon, authenticated;
-grant execute on function public.restore_document_version(uuid, uuid, text) to anon, authenticated;
-grant execute on function public.delete_document(uuid, text) to anon, authenticated;
+-- ============================================================
+-- 授权
+-- ============================================================
+-- 角色查询：匿名也可调用（前端判断登录态用）
+grant execute on function public.current_user_role() to anon, authenticated;
+-- 首用户管理员：登录后调用
+grant execute on function public.ensure_admin() to authenticated;
+-- 管理员管理用户
+grant execute on function public.add_authorized_user(text) to authenticated;
+grant execute on function public.remove_authorized_user(text) to authenticated;
+-- 写操作：仅登录用户（函数内部再校验角色）
+grant execute on function public.create_folder(text) to authenticated;
+grant execute on function public.create_document(text, text, text, uuid, text) to authenticated;
+grant execute on function public.update_document(uuid, text, text) to authenticated;
+grant execute on function public.restore_document_version(uuid, uuid) to authenticated;
+grant execute on function public.delete_document(uuid) to authenticated;
+grant execute on function public.reorder_documents(uuid[]) to authenticated;
+grant execute on function public.move_document(uuid, uuid) to authenticated;
+revoke execute on function public.create_folder(text) from anon;
+revoke execute on function public.create_document(text, text, text, uuid, text) from anon;
+revoke execute on function public.update_document(uuid, text, text) from anon;
+revoke execute on function public.restore_document_version(uuid, uuid) from anon;
+revoke execute on function public.delete_document(uuid) from anon;
+revoke execute on function public.reorder_documents(uuid[]) from anon;
+revoke execute on function public.move_document(uuid, uuid) from anon;

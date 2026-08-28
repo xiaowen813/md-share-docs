@@ -7,6 +7,7 @@ import { renderDocument } from '../lib/markdown'
 import { renderMermaidElements } from '../lib/mermaid'
 import { readMdFile, rememberUpload } from '../lib/uploadSession'
 import { useFileDrop } from '../lib/useFileDrop'
+import { canWrite } from '../lib/session'
 import DropOverlay from '../components/DropOverlay.vue'
 
 const route = useRoute()
@@ -387,23 +388,25 @@ function paginateAndPrint(wrap, folderName, docs) {
         <button class="btn" :disabled="downloading !== ''" @click="downloadAllPdf">
           {{ downloading === 'pdf' ? '准备中…' : '下载全部 PDF' }}
         </button>
-        <button class="btn" @click="fileInput?.click()">⬆ 上传文件</button>
-        <input ref="fileInput" type="file" accept=".md,.markdown,.txt,.tex,.typ" class="hidden-file" @change="onPickFile" />
-        <router-link :to="`/new?folder=${folder.id}&name=${encodeURIComponent(folder.name)}`" class="btn btn-primary">
-          ＋ 新建文档
-        </router-link>
+        <template v-if="canWrite()">
+          <button class="btn" @click="fileInput?.click()">⬆ 上传文件</button>
+          <input ref="fileInput" type="file" accept=".md,.markdown,.txt,.tex,.typ" class="hidden-file" @change="onPickFile" />
+          <router-link :to="`/new?folder=${folder.id}&name=${encodeURIComponent(folder.name)}`" class="btn btn-primary">
+            ＋ 新建文档
+          </router-link>
+        </template>
       </div>
       <p v-if="error" class="error no-print">{{ error }}</p>
 
       <!-- 文件夹内文档（按住卡片拖动可手动排序） -->
-      <p class="muted no-print" style="margin:0 0 10px;font-size:13px">↕ 按住卡片拖动可调整顺序，打印/PDF 按此顺序输出</p>
+      <p v-if="canWrite()" class="muted no-print" style="margin:0 0 10px;font-size:13px">↕ 按住卡片拖动可调整顺序，打印/PDF 按此顺序输出</p>
       <p class="muted no-print" style="margin:0 0 10px;font-size:13px;color:#b45309">🖨 导出 PDF 时请在打印对话框选择：纸张 A4 · 缩放 100% · 边距默认</p>
       <ul v-if="docs.length" class="doc-list no-print">
         <li
           v-for="(doc, i) in docs"
           :key="doc.id"
           class="doc-card draggable"
-          draggable="true"
+          :draggable="canWrite()"
           @dragstart="onDragStart(i)"
           @dragover.prevent
           @drop="onDrop(i)"

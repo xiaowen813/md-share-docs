@@ -52,7 +52,19 @@ body {
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
 .brand-name { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
 .logo { display: block; }
-.nav { display: flex; align-items: center; gap: 14px; }
+.nav { display: flex; align-items: center; gap: 12px; }
+.user-chip { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
+.user-chip .avatar { width: 24px; height: 24px; border-radius: 50%; }
+.user-chip .uname { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+.role-badge.role-admin { background: #fef3c7; color: #92400e; }
+.role-badge.role-editor { background: #dcfce7; color: #166534; }
+.role-badge.role-anonymous { background: #e2e8f0; color: #475569; }
+.theme-dark .role-badge.role-admin { background: #78350f; color: #fef3c7; }
+.theme-dark .role-badge.role-editor { background: #14532d; color: #dcfce7; }
+.theme-dark .role-badge.role-anonymous { background: #334155; color: #cbd5e1; }
+.add-user-row { display: flex; gap: 8px; }
+.add-user-row input { flex: 1; }
 .nav-link { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; }
 .nav-link:hover { color: var(--primary); }
 .btn-sm { padding: 6px 12px; font-size: 13px; }

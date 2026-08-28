@@ -6,7 +6,6 @@ import { renderMermaidElements } from '../lib/mermaid'
 
 const props = defineProps({
   docId: { type: String, required: true },
-  password: { type: String, required: true }, // 当前会话密码，恢复时服务端再次校验
 })
 const emit = defineEmits(['restored', 'close'])
 
@@ -54,7 +53,6 @@ async function restore(v) {
   const { data, error: err } = await supabase.rpc('restore_document_version', {
     p_id: props.docId,
     p_version_id: v.id,
-    p_password: props.password,
   })
   restoring.value = false
   if (err) { error.value = err.message; return }
