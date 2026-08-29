@@ -546,9 +546,15 @@ body {
   transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
 .folder-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: #b8e6df; }
+.folder-card { position: relative; }
 .folder-icon { font-size: 30px; }
-.folder-info h3 { margin: 0 0 2px; font-size: 15px; }
+.folder-info h3 { margin: 0 0 2px; font-size: 15px; padding-right: 56px; }
 .folder-info p { margin: 0; font-size: 12px; }
+.folder-card-ops {
+  position: absolute; top: 10px; right: 10px;
+  display: flex; gap: 2px;
+}
+.folder-card-ops .btn-icon { font-size: 14px; padding: 3px 6px; }
 
 /* ---------- 打印容器（文件夹全部 PDF） ---------- */
 /* 屏幕显示时移到屏幕外（保持可测量），打印时回到原位 */

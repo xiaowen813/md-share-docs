@@ -436,6 +436,70 @@ begin
 end;
 $$;
 
+-- ------------------------------------------------------------
+-- 9) 删除文件夹（内部文档自动移回根目录，on delete set null）
+-- ------------------------------------------------------------
+create or replace function public.delete_folder(p_folder_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.require_editor();
+  delete from public.folders where id = p_folder_id;
+  if not found then
+    raise exception '文件夹不存在';
+  end if;
+  return true;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 10) 文件夹改名
+-- ------------------------------------------------------------
+create or replace function public.rename_folder(p_folder_id uuid, p_new_name text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.require_editor();
+  if p_new_name is null or btrim(p_new_name) = '' then
+    raise exception '文件夹名称不能为空';
+  end if;
+  update public.folders set name = btrim(p_new_name) where id = p_folder_id;
+  if not found then
+    raise exception '文件夹不存在';
+  end if;
+  return true;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 11) 文档改名（改标题）
+-- ------------------------------------------------------------
+create or replace function public.rename_document(p_doc_id uuid, p_new_title text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.require_editor();
+  if p_new_title is null or btrim(p_new_title) = '' then
+    raise exception '标题不能为空';
+  end if;
+  update public.documents set title = btrim(p_new_title), updated_at = now()
+  where id = p_doc_id;
+  if not found then
+    raise exception '文档不存在';
+  end if;
+  return true;
+end;
+$$;
+
 -- ============================================================
 -- 授权
 -- ============================================================
@@ -455,6 +519,9 @@ grant execute on function public.restore_document_version(uuid, uuid) to authent
 grant execute on function public.delete_document(uuid) to authenticated;
 grant execute on function public.reorder_documents(uuid[]) to authenticated;
 grant execute on function public.move_document(uuid, uuid) to authenticated;
+grant execute on function public.delete_folder(uuid) to authenticated;
+grant execute on function public.rename_folder(uuid, text) to authenticated;
+grant execute on function public.rename_document(uuid, text) to authenticated;
 revoke execute on function public.create_folder(text) from anon;
 revoke execute on function public.create_document(text, text, text, uuid, text) from anon;
 revoke execute on function public.update_document(uuid, text, text) from anon;

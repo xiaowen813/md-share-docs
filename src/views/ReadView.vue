@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { renderDocument } from '../lib/markdown'
 import { renderMermaidElements } from '../lib/mermaid'
 import { convertDoc } from '../lib/convert'
+import { canWrite } from '../lib/session'
 import DocSidebar from '../components/DocSidebar.vue'
 
 const props = defineProps({ id: { type: String, required: true } })
@@ -65,6 +66,32 @@ function downloadPdf() {
   window.print()
 }
 
+// 文档改名
+const showRename = ref(false)
+const renameTitle = ref('')
+const renameError = ref('')
+
+function openRename() {
+  renameTitle.value = doc.value.title
+  renameError.value = ''
+  showRename.value = true
+}
+
+async function renameDoc() {
+  const t = renameTitle.value.trim()
+  if (!t) { renameError.value = '请输入标题'; return }
+  renameError.value = ''
+  const { error: err } = await supabase.rpc('rename_document', {
+    p_doc_id: doc.value.id,
+    p_new_title: t,
+  })
+  if (err) { renameError.value = err.message; return }
+  showRename.value = false
+  doc.value.title = t
+  document.title = t + ' · MD Share'
+  window.dispatchEvent(new Event('mdshare-docs-changed'))
+}
+
 // 导出为指定格式：md/latex/typst 转换后下载，pdf 走打印
 const showExport = ref(false)
 function exportAs(fmt) {
@@ -105,6 +132,7 @@ function exportAs(fmt) {
           </div>
           <div v-if="showExport" class="dropdown-backdrop" @click="showExport = false"></div>
         </div>
+        <button v-if="canWrite()" class="btn" @click="openRename">✏️ 改名</button>
         <router-link :to="`/doc/${doc.id}/edit`" class="btn btn-primary">编辑</router-link>
       </div>
 
@@ -113,6 +141,25 @@ function exportAs(fmt) {
           💡 下载 PDF 时，在浏览器打印对话框里选择“另存为 PDF”即可
         </p>
         </template>
+
+        <!-- 文档改名弹窗 -->
+        <div v-if="showRename" class="modal-overlay no-print" @click.self="showRename = false">
+          <div class="modal">
+            <div class="modal-head">
+              <h3>✏️ 文档改名</h3>
+              <button class="btn btn-icon" @click="showRename = false">✕</button>
+            </div>
+            <div class="field">
+              <label for="renameDoc">文档标题</label>
+              <input id="renameDoc" v-model="renameTitle" @keyup.enter="renameDoc" />
+            </div>
+            <p v-if="renameError" class="error">{{ renameError }}</p>
+            <div class="row">
+              <button class="btn" @click="showRename = false">取消</button>
+              <button class="btn btn-primary" @click="renameDoc">保存</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>

@@ -96,6 +96,42 @@ async function createFolder() {
   await load()
 }
 
+// ---------- 文件夹改名 / 删除 ----------
+const showRenameFolder = ref(false)
+const renameTarget = ref(null)
+const renameName = ref('')
+const renameError = ref('')
+
+function openRenameFolder(f) {
+  renameTarget.value = f
+  renameName.value = f.name
+  renameError.value = ''
+  showRenameFolder.value = true
+}
+
+async function renameFolder() {
+  const name = renameName.value.trim()
+  if (!name) { renameError.value = '请输入文件夹名称'; return }
+  renameError.value = ''
+  const { error: err } = await supabase.rpc('rename_folder', {
+    p_folder_id: renameTarget.value.id,
+    p_new_name: name,
+  })
+  if (err) { renameError.value = err.message; return }
+  showRenameFolder.value = false
+  window.dispatchEvent(new Event('mdshare-docs-changed'))
+  await load()
+}
+
+async function deleteFolder(f) {
+  if (!confirm(`确定删除文件夹「${f.name}」吗？
+文件夹内的文档会自动移回根目录，不会删除文档。`)) return
+  const { error: err } = await supabase.rpc('delete_folder', { p_folder_id: f.id })
+  if (err) { error.value = err.message; return }
+  window.dispatchEvent(new Event('mdshare-docs-changed'))
+  await load()
+}
+
 onMounted(load)
 </script>
 
@@ -137,6 +173,10 @@ onMounted(load)
           <div class="folder-info">
             <h3>{{ f.name }}</h3>
             <p class="muted">创建于 {{ fmtDate(f.created_at) }}</p>
+          </div>
+          <div v-if="canWrite()" class="folder-card-ops" @click.stop>
+            <button class="btn btn-icon" title="改名" @click="openRenameFolder(f)">✏️</button>
+            <button class="btn btn-icon" title="删除" @click="deleteFolder(f)">🗑</button>
           </div>
         </router-link>
       </div>
@@ -180,6 +220,25 @@ onMounted(load)
 
     <!-- 拖拽上传遮罩 -->
     <DropOverlay :show="dragging" />
+
+    <!-- 文件夹改名弹窗 -->
+    <div v-if="showRenameFolder" class="modal-overlay" @click.self="showRenameFolder = false">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>✏️ 文件夹改名</h3>
+          <button class="btn btn-icon" @click="showRenameFolder = false">✕</button>
+        </div>
+        <div class="field">
+          <label for="renameFolderHome">文件夹名称</label>
+          <input id="renameFolderHome" v-model="renameName" @keyup.enter="renameFolder" />
+        </div>
+        <p v-if="renameError" class="error">{{ renameError }}</p>
+        <div class="row">
+          <button class="btn" @click="showRenameFolder = false">取消</button>
+          <button class="btn btn-primary" @click="renameFolder">保存</button>
+        </div>
+      </div>
+    </div>
 
     <!-- 新建文件夹弹窗 -->
     <div v-if="showNewFolder" class="modal-overlay" @click.self="showNewFolder = false">

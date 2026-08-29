@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { supabase } from '../lib/supabase'
 
 const props = defineProps({
@@ -37,7 +37,14 @@ async function load() {
   })
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  // 文档/文件夹变更后自动刷新（改名等）
+  window.addEventListener('mdshare-docs-changed', load)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('mdshare-docs-changed', load)
+})
 watch(() => props.currentId, () => {}, { immediate: true })
 </script>
 

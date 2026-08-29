@@ -118,6 +118,39 @@ function safeName(name) {
   return (name || 'folder').replace(/[\\/:*?"<>|]/g, '_')
 }
 
+// ---------- 文件夹改名 / 删除 ----------
+const showRenameFolder = ref(false)
+const renameName = ref('')
+const renameError = ref('')
+
+function openRename() {
+  renameName.value = folder.value.name
+  renameError.value = ''
+  showRenameFolder.value = true
+}
+
+async function renameFolder() {
+  const name = renameName.value.trim()
+  if (!name) { renameError.value = '请输入文件夹名称'; return }
+  renameError.value = ''
+  const { error: err } = await supabase.rpc('rename_folder', {
+    p_folder_id: folder.value.id,
+    p_new_name: name,
+  })
+  if (err) { renameError.value = err.message; return }
+  showRenameFolder.value = false
+  folder.value.name = name
+  window.dispatchEvent(new Event('mdshare-docs-changed'))
+}
+
+async function deleteFolder() {
+  if (!confirm(`确定删除文件夹「${folder.value.name}」吗？
+文件夹内的文档会自动移回根目录，不会删除文档。`)) return
+  const { error: err } = await supabase.rpc('delete_folder', { p_folder_id: folder.value.id })
+  if (err) { error.value = err.message; return }
+  router.push('/')
+}
+
 // 导出全部为指定格式（md/latex/typst 转换后打包 zip）
 const showExport = ref(false)
 async function exportAll(fmt) {
@@ -415,6 +448,10 @@ function paginateAndPrint(wrap, folderName, docs) {
       <div class="toolbar no-print">
         <button class="btn btn-ghost" @click="goBack">← 返回</button>
         <h1 class="doc-title">📁 {{ folder.name }}</h1>
+        <template v-if="canWrite()">
+          <button class="btn btn-ghost btn-sm" @click="openRename">✏️ 改名</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--danger)" @click="deleteFolder">🗑 删除</button>
+        </template>
         <span class="muted">{{ docs.length }} 篇文档</span>
         <div class="spacer"></div>
         <div class="dropdown no-print">
@@ -479,6 +516,25 @@ function paginateAndPrint(wrap, folderName, docs) {
       </div>
 
       <p class="muted no-print" style="margin-top:14px;font-size:13px">💡 提示：拖拽 .md/.tex/.typ 文件到页面任意位置即可上传到本文件夹。</p>
+
+      <!-- 文件夹改名弹窗 -->
+      <div v-if="showRenameFolder" class="modal-overlay" @click.self="showRenameFolder = false">
+        <div class="modal">
+          <div class="modal-head">
+            <h3>✏️ 文件夹改名</h3>
+            <button class="btn btn-icon" @click="showRenameFolder = false">✕</button>
+          </div>
+          <div class="field">
+            <label for="renameFolder">文件夹名称</label>
+            <input id="renameFolder" v-model="renameName" @keyup.enter="renameFolder" />
+          </div>
+          <p v-if="renameError" class="error">{{ renameError }}</p>
+          <div class="row">
+            <button class="btn" @click="showRenameFolder = false">取消</button>
+            <button class="btn btn-primary" @click="renameFolder">保存</button>
+          </div>
+        </div>
+      </div>
 
       <!-- 拖拽上传遮罩 -->
       <DropOverlay :show="dragging" />
