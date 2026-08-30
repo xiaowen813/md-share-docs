@@ -99,7 +99,7 @@ function fmtCode() {
   fmt('```\n', '\n```')
 }
 
-const TAB = '  '
+const TAB = '    ' // 4 空格，与 VSCode 默认 tabSize 一致
 
 function getSelectionBlock() {
   const ta = taRef.value
